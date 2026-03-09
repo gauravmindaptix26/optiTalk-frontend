@@ -8,12 +8,17 @@ export default function Sidebar({
   active,
   onSelect,
   onStartNewChat,
+  onCreateGroup,
+  onSearch,
+  onGroupSearch,
   isConnected,
   typingStatus,
-  onSearch,
   searchResults,
   searchLoading,
   searchError,
+  groupSearchResults,
+  groupSearchLoading,
+  groupSearchError,
 }) {
   const displayName =
     profile?.displayName?.trim() ||
@@ -55,7 +60,7 @@ export default function Sidebar({
 
       <div>
         <input
-          placeholder="Search chats..."
+          placeholder="Search users..."
           className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
           onChange={(e) => onSearch?.(e.target.value)}
         />
@@ -70,12 +75,12 @@ export default function Sidebar({
             !searchError &&
             (searchResults || []).map((r) => (
               <button
-                key={r.userID || r.email || r.name}
+                key={r.userID || r.userId || r.email || r.name}
                 className="w-full text-left px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm text-white"
-                onClick={() => onStartNewChat?.(r.userID || r.email || r.name)}
+                onClick={() => onStartNewChat?.(r.userID || r.userId || r.email || r.name)}
                 type="button"
               >
-                <div className="font-semibold truncate">{r.name || r.email}</div>
+                <div className="font-semibold truncate">{r.name || r.email || r.userId}</div>
                 <div className="text-xs text-purple-200 truncate">{r.email}</div>
               </button>
             ))}
@@ -83,26 +88,73 @@ export default function Sidebar({
       </div>
 
       <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
-        <div className="text-xs text-purple-200 mb-2">Start a new chat</div>
+        <div className="text-xs text-purple-200 mb-2">Create a group</div>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            const val = e.target.elements.newChat?.value;
-            if (val?.trim()) onStartNewChat?.(val.trim());
+            const name = e.target.elements.groupName?.value?.trim();
+            const membersRaw = e.target.elements.groupMembers?.value || "";
+            const members = membersRaw
+              .split(",")
+              .map((m) => m.trim())
+              .filter(Boolean);
+            if (name) onCreateGroup?.({ name, members });
             e.target.reset();
           }}
-          className="flex gap-2"
+          className="space-y-2"
         >
           <input
-            name="newChat"
-            placeholder="Enter email/userID..."
-            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+            name="groupName"
+            placeholder="Group name"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+            disabled={!isConnected}
           />
+          <input
+            name="groupMembers"
+            placeholder="Members (emails/userIDs, comma separated)"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+            disabled={!isConnected}
+            onChange={(e) => onGroupSearch?.(e.target.value)}
+          />
+          <div className="space-y-1">
+            {groupSearchLoading && (
+              <div className="text-xs text-purple-200">Searching members...</div>
+            )}
+            {groupSearchError && (
+              <div className="text-xs text-red-200 break-words">{groupSearchError}</div>
+            )}
+            {!groupSearchLoading &&
+              !groupSearchError &&
+              (groupSearchResults || []).map((r) => (
+                <button
+                  key={r.userID || r.userId || r.email || r.name}
+                  type="button"
+                  className="w-full text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-xs text-white"
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    const formEl = ev.currentTarget.closest("form");
+                    const input = formEl?.elements?.groupMembers;
+                    const current = input?.value || "";
+                    // Always use userID (sanitized) instead of email to avoid 6000001 errors
+                    const val = r.userID || r.userId || r.email || r.name;
+                    if (input && val) {
+                      input.value = current ? `${current}, ${val}` : val;
+                    }
+                  }}
+                >
+                  <div className="font-semibold truncate text-sm">
+                    {r.name || r.email || r.userId}
+                  </div>
+                  <div className="text-[11px] text-purple-200 truncate">{r.email}</div>
+                </button>
+              ))}
+          </div>
           <button
             type="submit"
-            className="px-3 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm hover:scale-[1.01] transition"
+            className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-sm hover:bg-white/15 transition"
+            disabled={!isConnected}
           >
-            Chat
+            Create group
           </button>
         </form>
       </div>

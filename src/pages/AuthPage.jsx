@@ -19,10 +19,10 @@ const AuthPage = () => {
   }, [isAuthenticated, isLoading, location.state?.from, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center relative">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center relative py-10 lg:py-16">
       <FloatingParticles />
 
-      <div className="max-w-6xl w-full bg-white/10 backdrop-blur-xl rounded-3xl flex flex-col lg:flex-row overflow-hidden">
+      <div className="max-w-6xl w-full bg-white/10 backdrop-blur-xl rounded-3xl flex flex-col lg:flex-row overflow-hidden min-h-[520px] lg:min-h-[580px]">
         <AuthForm />
         <HeroSection />
       </div>

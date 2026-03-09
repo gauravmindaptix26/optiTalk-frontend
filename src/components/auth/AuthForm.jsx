@@ -16,6 +16,10 @@ const AuthForm = () => {
   const dbConnection = import.meta.env.VITE_AUTH0_DB_CONNECTION;
   const googleConnection =
     import.meta.env.VITE_AUTH0_GOOGLE_CONNECTION ?? "google-oauth2";
+  const logoutReturnTo =
+    import.meta.env.VITE_AUTH0_LOGOUT_REDIRECT ||
+    import.meta.env.VITE_AUTH0_REDIRECT_URI ||
+    window.location.origin;
  
   const login = () =>
     loginWithRedirect({
@@ -40,7 +44,7 @@ const AuthForm = () => {
 
   const auth0Logout = () =>
     logout({
-      logoutParams: { returnTo: window.location.origin },
+      logoutParams: { returnTo: logoutReturnTo },
     });
 
   return (

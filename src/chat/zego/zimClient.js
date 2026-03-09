@@ -2,6 +2,8 @@ import { getZimSdk } from "./zimSdk";
 
 let zimInstance = null;
 let createPromise = null;
+let loginState = null;
+let loggedInUserID = null;
 
 export function getZim() {
   if (!zimInstance) throw new Error("ZIM instance not created yet");
@@ -19,12 +21,12 @@ export async function createZim() {
       throw new Error("Missing/invalid VITE_ZEGO_APP_ID in frontend/.env");
     }
 
+    console.log(`[ZIM] Creating ZIM instance with appID=${appID}`);
+
     // Guard for StrictMode: create only once per tab.
-    // SDK note: create() only works first time, next time returns null (SDK behavior)
     ZIM.create({ appID });
     zimInstance = ZIM.getInstance();
 
-    // basic handlers (avoid re-registering if createZim is called again)
     zimInstance.off("error");
     zimInstance.off("connectionStateChanged");
 
@@ -36,6 +38,7 @@ export async function createZim() {
       console.log("[ZIM connectionStateChanged]", state, event);
     });
 
+    console.log("[ZIM] ZIM instance created successfully");
     return zimInstance;
   })();
 
@@ -55,10 +58,80 @@ export async function loginZim({ userID, userName, token }) {
   const cleanUserID = userID.trim();
   const cleanUserName = (userName || cleanUserID).toString();
 
-  // ✅ Zego doc: login(userInfo, token) :contentReference[oaicite:1]{index=1}
-  const userInfo = { userID: cleanUserID, userName: cleanUserName };
+  if (loggedInUserID === cleanUserID) {
+    console.log(`[ZIM] Reusing existing login for "${cleanUserID}"`);
+    return { ok: true, reused: true };
+  }
 
-  return zimInstance.login(userInfo, token);
+  if (loginState?.userID === cleanUserID) {
+    console.log(`[ZIM] Awaiting in-flight login for "${cleanUserID}"`);
+    return loginState.promise;
+  }
+
+  if (loggedInUserID && loggedInUserID !== cleanUserID) {
+    try {
+      console.log(`[ZIM] Logging out previous user "${loggedInUserID}" before switching to "${cleanUserID}"`);
+      zimInstance.logout();
+    } catch (e) {
+      console.warn("logout before login failed", e);
+    }
+    loggedInUserID = null;
+  }
+
+  console.log(
+    `[ZIM] loginZim: userID="${cleanUserID}" (length=${cleanUserID.length}), userName="${cleanUserName}"`,
+  );
+
+  const pendingLogin = (async () => {
+    const userInfo = { userID: cleanUserID, userName: cleanUserName };
+
+    let result;
+    try {
+      result = await zimInstance.login(userInfo, token);
+    } catch (err) {
+      const errCode = err?.code ?? err?.errorCode ?? err?.moduleErrCode ?? "";
+      const errMsg = err?.message || err?.errorMessage || err?.errorMsg || String(err);
+      const detail = errCode ? `code=${errCode} ${errMsg}` : errMsg;
+      console.error(`[ZIM] Login threw error for "${cleanUserID}":`, err);
+      throw new Error(detail);
+    }
+
+    console.log("[ZIM] login returned", result);
+
+    const hasErrorCode = result && (result.errorCode || result.errorCode === 0);
+    const hasError = result && (result.error || result.errorMsg || result.errorMessage);
+
+    if (hasErrorCode && result.errorCode !== 0) {
+      const errCode = String(result.errorCode);
+      const errMsg =
+        result.errorMessage ||
+        result.errorMsg ||
+        result.error?.message ||
+        String(result.errorCode);
+      console.error(`[ZIM] Login failed: errorCode=${errCode}, message=${errMsg}`);
+      throw new Error(`code=${errCode} ${errMsg}`);
+    }
+
+    if (hasError) {
+      const errMsg = result.error?.message || result.errorMessage || result.errorMsg;
+      console.error(`[ZIM] Login failed: ${errMsg}`);
+      throw new Error(errMsg);
+    }
+
+    loggedInUserID = cleanUserID;
+    console.log(`[ZIM] Login successful! User "${cleanUserID}" now connected to Zego`);
+    return result || { ok: true };
+  })();
+
+  loginState = { userID: cleanUserID, promise: pendingLogin };
+
+  try {
+    return await pendingLogin;
+  } finally {
+    if (loginState?.promise === pendingLogin) {
+      loginState = null;
+    }
+  }
 }
 
 export async function enterRoomZim({ roomID, roomName }) {
@@ -83,7 +156,116 @@ export function logoutZim() {
   if (!zimInstance) return;
   try {
     zimInstance.logout();
+    loggedInUserID = null;
+    loginState = null;
   } catch (e) {
     console.warn("logoutZim failed", e);
   }
+}
+
+export async function createGroupZim({ groupName, userIDs = [] }) {
+  if (!zimInstance) await createZim();
+  const info = {
+    groupName: (groupName || "").trim(),
+    groupAvatarUrl: "",
+  };
+  const members = (userIDs || [])
+    .filter(Boolean)
+    .map((id) => ({ userID: id }));
+
+  console.log(`[ZIM] createGroupZim called with groupName=${info.groupName}, members=${JSON.stringify(members)}`);
+  const resp = await zimInstance.createGroup(info, members);
+  console.log("[ZIM] createGroup response:", resp);
+
+  const formatErrUser = (u) => {
+    if (!u) return "unknown";
+    const idRaw = u.userID ?? u.memberID ?? u.id ?? null;
+    const id =
+      typeof idRaw === "string" ? idRaw : idRaw ? JSON.stringify(idRaw) : JSON.stringify(u);
+    const reason =
+      u.reason || u.message || u.code || u.errorCode || u.errorMessage || "";
+
+    const codeStr = String(u.code || u.errorCode || "");
+    let detail = reason;
+    const reasonStr = String(reason || "");
+    if (codeStr === "6000001" || reasonStr.includes("6000001")) {
+      detail = "User doesn't exist in Zego (they need to login first)";
+    }
+
+    return detail ? `${id} (${detail})` : id;
+  };
+
+  const groupID =
+    resp?.groupID ||
+    resp?.groupInfo?.baseInfo?.groupID ||
+    resp?.groupInfo?.groupID ||
+    resp?.createdGroupInfo?.groupID ||
+    resp?.createdGroupID ||
+    resp?.data?.groupID ||
+    resp?.data?.groupInfo?.groupID ||
+    resp?.data?.createdGroupID ||
+    null;
+
+  if (!groupID) {
+    console.error("[ZIM] createGroup response missing groupID. Response:", resp);
+    const errored =
+      (resp?.errorUserList || [])
+        .map(formatErrUser)
+        .filter(Boolean);
+    if (errored.length) {
+      throw new Error(`Could not add members: ${errored.join(", ")}`);
+    }
+
+    const respKeys = Object.keys(resp || {}).join(",");
+    console.error("[ZIM] Full response object:", JSON.stringify(resp, null, 2));
+    throw new Error(
+      `Group creation failed - missing groupID. Response keys: ${respKeys}. Check console logs.`,
+    );
+  }
+
+  return {
+    ...resp,
+    groupID,
+    groupInfo: resp?.groupInfo || { groupID, groupName: info.groupName },
+  };
+}
+
+export async function inviteToGroupZim({ groupID, userIDs = [] }) {
+  if (!zimInstance) await createZim();
+  const members = (userIDs || []).filter(Boolean).map((id) => ({ userID: id }));
+  console.log(`[ZIM] inviteToGroupZim called with groupID=${groupID}, members=${JSON.stringify(members)}`);
+  const resp = await zimInstance.inviteUsersIntoGroup(groupID, members);
+  console.log("[ZIM] inviteUsersIntoGroup response:", resp);
+  return resp;
+}
+
+export async function removeFromGroupZim({ groupID, userIDs = [] }) {
+  if (!zimInstance) await createZim();
+  const ids = (userIDs || []).filter(Boolean);
+  return zimInstance.kickGroupMembers(groupID, ids);
+}
+
+export async function joinGroupZim({ groupID }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  if (!cleanGroupID) throw new Error("joinGroupZim: groupID is required");
+  try {
+    console.log(`[ZIM] Joining group: ${cleanGroupID}`);
+    const result = await zimInstance.joinGroup(cleanGroupID);
+    console.log(`[ZIM] Joined group ${cleanGroupID}:`, result);
+    return result;
+  } catch (e) {
+    const msg = (e?.message || "").toLowerCase();
+    if (msg.includes("already") || msg.includes("exist")) {
+      console.log(`[ZIM] Already member of group ${cleanGroupID}`);
+      return;
+    }
+    console.error(`[ZIM] Failed to join group ${cleanGroupID}:`, e);
+    throw e;
+  }
+}
+
+export async function queryGroupMembersZim({ groupID, count = 50 }) {
+  if (!zimInstance) await createZim();
+  return zimInstance.queryGroupMemberList(groupID, { count, nextFlag: 0 });
 }

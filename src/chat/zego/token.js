@@ -1,4 +1,5 @@
-export async function fetchZegoToken({ authToken, userID }) {
+export async function fetchZegoToken({ authToken, userID, userId }) {
+  const resolvedUserID = userID ?? userId;
   const envEndpoint = import.meta.env.VITE_ZEGO_TOKEN_ENDPOINT;
   const endpoint =
     envEndpoint && envEndpoint.trim()
@@ -16,8 +17,8 @@ export async function fetchZegoToken({ authToken, userID }) {
   }
 
   const url = new URL(endpoint, typeof window !== "undefined" ? window.location.origin : undefined);
-  if (userID) {
-    url.searchParams.set("userID", userID);
+  if (resolvedUserID) {
+    url.searchParams.set("userID", resolvedUserID);
   }
 
   let res;
@@ -45,6 +46,7 @@ export async function fetchZegoToken({ authToken, userID }) {
   if (!data?.token || typeof data.token !== "string") {
     throw new Error("Token API did not return a valid token string");
   }
+  const returnedUserID = data.userID ?? data.userId ?? resolvedUserID ?? "";
 
-  return data;
+  return { token: data.token, userID: returnedUserID };
 }

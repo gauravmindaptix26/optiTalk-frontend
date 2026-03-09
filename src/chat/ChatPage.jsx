@@ -8,6 +8,11 @@ import {
   leaveRoomZim,
   loginZim,
   logoutZim,
+  createGroupZim,
+  inviteToGroupZim,
+  removeFromGroupZim,
+  queryGroupMembersZim,
+  joinGroupZim,
 } from "./zego/zimClient";
 import {
   ZIMConnectionEvent,
@@ -24,15 +29,19 @@ import { loadCachedMessages, saveCachedMessages } from "./storage/chatCache";
 import { useProfile } from "../profile/useProfile";
 import ProfilePanel from "../profile/ProfilePanel";
 import { getZimSdk } from "./zego/zimSdk";
+import { getApiBase } from "./helpers/apiBase";
 
 const LAST_CONV_KEY = "zego:lastConversation";
+const GROUP_ADMIN_KEY = "zego:groupAdmins";
 
 const toZegoUserID = (raw) =>
   String(raw ?? "")
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9._@-]/g, "_")
-    .slice(0, 64);
+    // Keep IDs within Zego's Web login limit and allowed character set.
+    .replace(/[^a-z0-9._-]/g, "_")
+    .replace(/@/g, "_")
+    .slice(0, 32);
 
 const convKey = (type, id) => `${type}:${id}`;
 
@@ -58,6 +67,7 @@ export default function ChatPage() {
   const [active, setActive] = useState(null);
   const [messagesByConv, setMessagesByConv] = useState(() => ({}));
   const [showProfile, setShowProfile] = useState(false);
+  const [cachedIdToken, setCachedIdToken] = useState(null);  // ✅ NEW: Cache Auth0 token
   const saveTimersRef = useRef(new Map());
   const activeRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -66,11 +76,36 @@ export default function ChatPage() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const searchAbortRef = useRef(null);
+  const [groupSearchResults, setGroupSearchResults] = useState([]);
+  const [groupSearchLoading, setGroupSearchLoading] = useState(false);
+  const [groupSearchError, setGroupSearchError] = useState("");
+  const groupSearchAbortRef = useRef(null);
+  const [groupMembers, setGroupMembers] = useState({});
+  const [groupAdmins, setGroupAdmins] = useState(() => {
+    try {
+      const raw = localStorage.getItem(GROUP_ADMIN_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [groupInviteInput, setGroupInviteInput] = useState("");
+  const [groupRemoveInput, setGroupRemoveInput] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     activeRef.current = active;
     setTypingStatus(null);
   }, [active]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GROUP_ADMIN_KEY, JSON.stringify(groupAdmins));
+    } catch {
+      // ignore
+    }
+  }, [groupAdmins]);
 
   const appRoomID = useMemo(
     () => String(import.meta.env.VITE_ZEGO_ROOM_ID ?? "global"),
@@ -84,6 +119,10 @@ export default function ChatPage() {
     if (email) return String(email).split("@")[0];
     return userID;
   }, [email, user?.name, userID]);
+  const logoutReturnTo =
+    import.meta.env.VITE_AUTH0_LOGOUT_REDIRECT ||
+    import.meta.env.VITE_AUTH0_REDIRECT_URI ||
+    window.location.origin;
 
   const { profile, updateProfile } = useProfile({
     userKey: userID,
@@ -123,7 +162,11 @@ export default function ChatPage() {
       { count: 50 },
       {
         marks: [],
-        conversationTypes: [ZIMConversationType.Peer, ZIMConversationType.Room],
+        conversationTypes: [
+          ZIMConversationType.Peer,
+          ZIMConversationType.Room,
+          ZIMConversationType.Group,
+        ],
         isOnlyUnreadConversation: false,
       },
     );
@@ -146,21 +189,6 @@ export default function ChatPage() {
         )
       : list;
 
-    if (
-      !adjusted.some(
-        (c) => c.type === ZIMConversationType.Room && c.id === appRoomID,
-      )
-    ) {
-      adjusted.unshift({
-        id: appRoomID,
-        type: ZIMConversationType.Room,
-        title: "Community",
-        subtitle: "",
-        unreadCount: 0,
-        lastMessage: null,
-      });
-    }
-
     setConversations(adjusted);
     return adjusted;
   };
@@ -180,6 +208,33 @@ export default function ChatPage() {
     }));
   };
 
+  const loadGroupMembers = async (groupID) => {
+    if (!groupID) return;
+    try {
+      const resp = await queryGroupMembersZim({ groupID, count: 200 });
+      const list =
+        resp?.userList ||
+        resp?.groupMemberList ||
+        resp?.memberList ||
+        [];
+      setGroupMembers((prev) => ({ ...prev, [groupID]: list }));
+    } catch (e) {
+      console.warn("Failed to load group members", e);
+    }
+  };
+
+  const ensureGroupJoined = async (groupID) => {
+    if (!groupID) return;
+    try {
+      await joinGroupZim({ groupID });
+    } catch (e) {
+      const msg = (e?.message || "").toLowerCase();
+      if (msg.includes("already") || msg.includes("exist")) return;
+      console.warn("Join group failed", e);
+      setStatus({ phase: "error", error: e?.message || "Join group failed" });
+    }
+  };
+
   const setActiveConversation = async (conversation) => {
     setActive(conversation);
     try {
@@ -191,7 +246,14 @@ export default function ChatPage() {
       // ignore
     }
 
+    if (conversation.type === ZIMConversationType.Group) {
+      await ensureGroupJoined(conversation.id);
+    }
+
     await loadHistory(conversation);
+    if (conversation.type === ZIMConversationType.Group) {
+      await loadGroupMembers(conversation.id);
+    }
     await markConversationAsRead(conversation);
 
     setConversations((prev) =>
@@ -218,6 +280,9 @@ export default function ChatPage() {
 
   const handleIncoming = (type, fromConversationID, list) => {
     const key = convKey(type, fromConversationID);
+    const isActive =
+      activeRef.current?.id === fromConversationID &&
+      activeRef.current?.type === type;
 
     // Typing indicator detection for peer custom message.
     const typingMsg = (list ?? []).find(
@@ -252,26 +317,20 @@ export default function ChatPage() {
 
     setConversations((prev) => {
       const lastMessage = list?.[list.length - 1] ?? null;
-      const isActive =
-        activeRef.current?.id === fromConversationID &&
-        activeRef.current?.type === type;
-      if (isActive) {
-        markActiveAsRead().catch(() => {});
-      }
+      let found = false;
 
       const updated = prev.map((c) => {
         if (c.id !== fromConversationID || c.type !== type) return c;
+        found = true;
         return {
           ...c,
           lastMessage: lastMessage ?? c.lastMessage,
+          // If active, force unread to 0 so no badge/notification is shown.
           unreadCount: isActive ? 0 : (c.unreadCount ?? 0) + 1,
         };
       });
 
-      const exists = updated.some(
-        (c) => c.id === fromConversationID && c.type === type,
-      );
-      if (exists) return updated;
+      if (found) return updated;
 
       const title =
         type === ZIMConversationType.Room
@@ -286,12 +345,18 @@ export default function ChatPage() {
           type,
           title,
           subtitle: "",
+          // New conversation: if it's the active one, keep unread 0.
           unreadCount: isActive ? 0 : 1,
           lastMessage,
         },
         ...updated,
       ];
     });
+
+    // If this conversation is currently open, proactively clear unread after state update
+    if (isActive) {
+      markActiveAsRead().catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -309,22 +374,50 @@ export default function ChatPage() {
         const idTokenClaims = await getIdTokenClaims();
         const idToken = idTokenClaims?.__raw;
         if (!idToken) throw new Error("Missing Auth0 ID token");
+        
+        // ✅ NEW: Cache the token for search operations
+        setCachedIdToken(idToken);
+        console.log(`[Chat] Cached Auth0 token successfully`);
 
-        const { token, userID: serverUserId } = await fetchZegoToken({
-          authToken: idToken,
-          userID: email || userID,
-        });
-
-        if (serverUserId && serverUserId !== userID) {
-          throw new Error("Auth0 identity mismatch for Zego token");
+        // Sync current user into backend directory store for search
+        // ✅ This ensures user is marked as "active" and can be found in searches
+        try {
+          console.log(`[Chat] Syncing user "${userName}" with backend...`);
+          const base = getApiBase();
+          const meUrl = base ? `${base}/api/me` : "/api/me";
+          const syncResp = await fetch(meUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              email,
+              name: userName,
+              picture: profilePhoto,
+            }),
+          });
+          if (syncResp.ok) {
+            console.log(`[Chat] ✅ User sync successful - user is now ACTIVE`);
+          } else {
+            console.warn(`[Chat] ⚠️ User sync returned ${syncResp.status}`);
+          }
+        } catch (syncErr) {
+          console.warn(`[Chat] ⚠️ User sync failed:`, syncErr?.message);
         }
-        const loginUserId = serverUserId || userID;
+
+        const { token, userID: serverUserID } = await fetchZegoToken({
+          authToken: idToken,
+          userID,
+        });
+        const loginUserId = serverUserID || userID;
 
         await createZim();
         const zim = getZim();
 
         zim.off("peerMessageReceived");
         zim.off("roomMessageReceived");
+        zim.off("groupMessageReceived");
         zim.off("connectionStateChanged");
         zim.off("tokenWillExpire");
         zim.off("conversationChanged");
@@ -334,6 +427,7 @@ export default function ChatPage() {
 
         zim.on("peerMessageReceived", (_zim, data) => {
           if (cancelled) return;
+          console.log(`[Chat] Received peer messages from ${data.fromConversationID}:`, data.messageList?.length || 0, "messages");
           handleIncoming(
             ZIMConversationType.Peer,
             data.fromConversationID,
@@ -341,8 +435,19 @@ export default function ChatPage() {
           );
         });
 
+        zim.on("groupMessageReceived", (_zim, data) => {
+          if (cancelled) return;
+          console.log(`[Chat] Received group messages in ${data.fromConversationID}:`, data.messageList?.length || 0, "messages");
+          handleIncoming(
+            ZIMConversationType.Group,
+            data.fromConversationID,
+            data.messageList,
+          );
+        });
+
         zim.on("roomMessageReceived", (_zim, data) => {
           if (cancelled) return;
+          console.log(`[Chat] Received room messages in ${data.fromConversationID}:`, data.messageList?.length || 0, "messages");
           handleIncoming(
             ZIMConversationType.Room,
             data.fromConversationID,
@@ -427,7 +532,7 @@ export default function ChatPage() {
               error: "Same email is already logged in on another tab/device.",
             });
             logoutZim();
-            logout({ logoutParams: { returnTo: window.location.origin } });
+            logout({ logoutParams: { returnTo: logoutReturnTo } });
           }
         });
 
@@ -438,7 +543,7 @@ export default function ChatPage() {
             if (renewedIdToken) {
               const { token: newToken } = await fetchZegoToken({
                 authToken: renewedIdToken,
-                userID: email || userID,
+                userID,
               });
               await zim.renewToken(newToken);
             }
@@ -447,7 +552,23 @@ export default function ChatPage() {
           }
         });
 
-        await loginZim({ userID: loginUserId, userName, token });
+        try {
+          console.log(`[Chat] Logging into Zego with userID="${loginUserId}"`);
+          await loginZim({ userID: loginUserId, userName, token });
+          console.log(`[Chat] ✅ Successfully logged into Zego - Status changing to "Online"`);
+        } catch (loginErr) {
+          console.error(`[Chat] ❌ Zego login failed:`, loginErr);
+          if (cancelled) return;
+          const errMsg = loginErr?.message || String(loginErr);
+          const hint = /request timeout/i.test(errMsg)
+            ? "Possible causes: duplicate login during dev reload, blocked WebSocket/network access, or invalid Zego app credentials."
+            : "Possible causes: invalid token, app ID/server secret mismatch, or Zego connectivity issues.";
+          setStatus({ 
+            phase: "error", 
+            error: `Zego connection failed: ${errMsg}. ${hint}` 
+          });
+          return;
+        }
         if (cancelled) return;
 
         await enterRoomZim({ roomID: appRoomID, roomName: appRoomID });
@@ -560,11 +681,127 @@ export default function ChatPage() {
     await setActiveConversation(next);
   };
 
+  const createGroup = async ({ name, members }) => {
+    const cleanName = (name || "").trim();
+    if (!cleanName) return;
+    if (!isConnected) {
+      setStatus({ phase: "error", error: "Connect first, then create a group" });
+      return;
+    }
+    try {
+      const allIds = Array.from(
+        new Set(
+          (members || [])
+            .map(toZegoUserID)
+            .filter(Boolean)
+            .concat(userID),
+        ),
+      );
+      const invitees = allIds.filter((id) => id !== userID);
+      
+      // ✅ VALIDATION: Warn user if they're trying to add no one or only themselves
+      if (invitees.length === 0) {
+        setStatus({
+          phase: "error",
+          error: "⚠️ No members selected. Please search and select members from the search results below to add to the group.",
+        });
+        return;
+      }
+      
+      console.log(`[Group] Creating group "${cleanName}" with ${invitees.length} invitees`);
+
+      // ✅ FIX: Create group WITHOUT including creator - Zego auto-adds creator
+      // The creator should NOT be in the userIDs array for createGroup
+      const result = await createGroupZim({
+        groupName: cleanName,
+        userIDs: [], // ← EMPTY array - creator is added automatically by Zego
+      });
+
+      const initialErrors =
+        (result?.errorUserList || [])
+          .map((u) => u?.userID || u?.memberID || u?.id || JSON.stringify(u))
+          .filter(Boolean);
+      
+      // Note: Creator is automatically added by Zego, so we don't expect them in error list
+      // Just log for debugging if any errors occur
+      if (initialErrors.length) {
+        console.warn(`[Chat] Group creation had some errors, but group should still be created:`, initialErrors);
+      }
+
+      const groupID =
+        result?.groupInfo?.groupID ||
+        result?.groupID ||
+        result?.data?.groupID ||
+        `group_${Date.now()}`;
+
+      const newConv = {
+        id: groupID,
+        type: ZIMConversationType.Group,
+        title: result?.groupInfo?.groupName || cleanName,
+        subtitle: "",
+        unreadCount: 0,
+        lastMessage: null,
+      };
+
+      setGroupAdmins((prev) => ({ ...prev, [groupID]: userID }));
+      setConversations((prev) => {
+        const exists = prev.some(
+          (c) => c.id === newConv.id && c.type === newConv.type,
+        );
+        if (exists) return prev;
+        return [newConv, ...prev];
+      });
+
+      await setActiveConversation(newConv);
+      await ensureGroupJoined(groupID);
+      await loadGroupMembers(groupID);
+
+      let inviteFailures = [];
+      if (invitees.length) {
+        console.log(`[Group Invite] Inviting ${invitees.length} users to group ${groupID}:`, invitees);
+        for (const id of invitees) {
+          try {
+            console.log(`  [Invite] Sending invite for userID="${id}"`);
+            const resp = await inviteToGroupZim({ groupID, userIDs: [id] });
+            const errs =
+              resp?.errorUserList ||
+              resp?.errorInviteeList ||
+              resp?.errorList ||
+              [];
+            if (errs.length) {
+              console.error(`  [Invite ERROR] User "${id}" failed:`, errs);
+              inviteFailures.push(id);
+            } else {
+              console.log(`  [Invite SUCCESS] User "${id}" added to group`);
+            }
+          } catch (e) {
+            console.error(`  [Invite EXCEPTION] User "${id}":`, e?.message);
+            inviteFailures.push(id);
+          }
+        }
+      }
+
+      if (inviteFailures.length) {
+        console.error(`[Group] Invite failed for: ${inviteFailures.join(", ")}`);
+        setStatus({
+          phase: "error",
+          error: `Group created but invites failed: ${inviteFailures.join(", ")}`,
+        });
+      } else {
+        setStatus({ phase: "connected", error: "" });
+      }
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Group creation failed" });
+    }
+  };
+
   const send = async (message) => {
     if (!active) return;
     const zim = getZim();
     const config = { priority: ZIMMessagePriority.Low, hasReceipt: true };
+    console.log(`[Chat] Sending ${message.type === ZIMMessageType.Text ? "text" : "custom"} message to ${active.id} (${active.type})`, message.message);
     const result = await zim.sendMessage(message, active.id, active.type, config);
+    console.log(`[Chat] Message sent, messageID=${result.message?.messageID}`);
 
     setMessagesByConv((prev) => {
       const key = convKey(active.type, active.id);
@@ -676,34 +913,145 @@ export default function ChatPage() {
     await markActiveAsRead();
   };
 
-  const handleUserSearch = async (query) => {
-    setSearchError("");
-    if (!query || query.length < 2) {
-      setSearchResults([]);
+  const addMembersToGroup = async (groupID, entries) => {
+    if (!groupID) return;
+    const ids = Array.from(
+      new Set(
+        (entries || [])
+          .map(toZegoUserID)
+          .filter(Boolean)
+          .filter((id) => id !== userID),
+      ),
+    );
+    if (!ids.length) {
+      setStatus({ phase: "error", error: "Add members failed: no valid userIDs" });
       return;
     }
     try {
-      setSearchLoading(true);
-      const idToken = (await getIdTokenClaims())?.__raw;
-      if (!idToken) throw new Error("Missing Auth0 ID token for search");
-      const url = new URL("/api/users", window.location.origin);
-      url.searchParams.set("q", query);
+      await ensureGroupJoined(groupID);
+      console.log(`[Group] Adding members to ${groupID}:`, ids);
+      const resp = await inviteToGroupZim({ groupID, userIDs: ids });
+      console.log(`[Group] Invite response:`, resp);
+      const errors =
+        resp?.errorUserList ||
+        resp?.errorInviteeList ||
+        resp?.errorList ||
+        [];
+      if (errors.length) {
+        const failed = errors
+          .map((u) => u?.userID || u?.memberID || u?.id || JSON.stringify(u))
+          .filter(Boolean);
+        console.error(`[Group] Invite errors:`, failed);
+        let errorMsg = `Add members failed: ${failed.join(", ")}`;
+        if (failed.some(f => f.toLowerCase().includes("doesn't exist"))) {
+          errorMsg += ". Note: Users must login to the app first before they can be added to groups.";
+        }
+        setStatus({ phase: "error", error: errorMsg });
+      } else {
+        setStatus({ phase: "connected", error: "" });
+      }
+      await loadGroupMembers(groupID);
+    } catch (e) {
+      console.error(`[Group] Add members exception:`, e);
+      setStatus({ phase: "error", error: e?.message || "Add members failed" });
+    }
+  };
+
+  const removeMembersFromGroup = async (groupID, entries) => {
+    if (!groupID) return;
+    const ids = (entries || []).map(toZegoUserID).filter(Boolean);
+    if (!ids.length) return;
+    try {
+      await removeFromGroupZim({ groupID, userIDs: ids });
+      await loadGroupMembers(groupID);
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Remove members failed" });
+    }
+  };
+
+  const handleSearch = async ({ query, setter, setErr, setLoading, abortRef }) => {
+    setErr("");
+    const q = String(query || "").trim();
+    if (!q) {
+      setter([]);
+      return;
+    }
+    try {
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setLoading(true);
+      
+      // ✅ FIX: Use cached token first, then try to get fresh one
+      let idToken = cachedIdToken;
+      
+      if (!idToken) {
+        // Try to get fresh token with retry
+        let retries = 3;
+        while (!idToken && retries > 0) {
+          try {
+            idToken = (await getIdTokenClaims())?.__raw;
+            if (idToken) {
+              setCachedIdToken(idToken); // Cache it for next time
+              break;
+            }
+          } catch (e) {
+            console.warn(`[Search] Auth0 token attempt ${4 - retries} failed:`, e);
+          }
+          retries--;
+          if (!idToken && retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms before retry
+          }
+        }
+      }
+      
+      if (!idToken) {
+        throw new Error("Could not get Auth0 token. Please ensure you are logged in.");
+      }
+      
+      const base = getApiBase();
+      const url = new URL(base ? `${base}/api/users` : "/api/users");
+      if (q) url.searchParams.set("q", q);
       const res = await fetch(url.toString(), {
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${idToken}` },
       });
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`Search failed (${res.status}): ${text}`);
       }
       const data = await res.json();
-      setSearchResults(data?.results ?? []);
+      setter(data?.results ?? []);
     } catch (e) {
-      setSearchError(e?.message || "Search failed");
-      setSearchResults([]);
+      if (e?.name === "AbortError") return;
+      setErr(e?.message || "Search failed");
+      setter([]);
     } finally {
-      setSearchLoading(false);
+      setLoading(false);
+      abortRef.current = null;
     }
   };
+
+  const handleUserSearch = (query) =>
+    handleSearch({
+      query,
+      setter: setSearchResults,
+      setErr: setSearchError,
+      setLoading: setSearchLoading,
+      abortRef: searchAbortRef,
+    });
+
+  const handleGroupSearch = (query) =>
+    handleSearch({
+      query,
+      setter: setGroupSearchResults,
+      setErr: setGroupSearchError,
+      setLoading: setGroupSearchLoading,
+      abortRef: groupSearchAbortRef,
+    });
 
   const sendTyping = async () => {
     if (!active || active.type !== ZIMConversationType.Peer) return;
@@ -732,8 +1080,50 @@ export default function ChatPage() {
   };
 
   const onLogout = () => {
-    logoutZim();
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    console.log("[Chat] Starting logout and clear all data...");
+    
+    // 1. Logout from Zego
+    try {
+      logoutZim();
+      console.log("[Chat] Logged out from Zego");
+    } catch (e) {
+      console.error("[Chat] Error logging out from Zego:", e);
+    }
+    
+    // 2. Clear all localStorage
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("zego:") || key.startsWith("profile:") || key.startsWith("auth"))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      console.log("[Chat] Cleared localStorage:", keysToRemove);
+    } catch (e) {
+      console.error("[Chat] Error clearing localStorage:", e);
+    }
+    
+    // 3. Clear React state
+    setConversations([]);
+    setMessagesByConv({});
+    setActive(null);
+    setStatus({ phase: "idle", error: "" });
+    setGroupMembers({});
+    setGroupAdmins({});
+    setSearchResults([]);
+    setSearchError("");
+    setGroupSearchResults([]);
+    setGroupSearchError("");
+    setTypingStatus(null);
+    setReplyTo(null);
+    setCachedIdToken(null);
+    console.log("[Chat] Cleared React state");
+    
+    // 4. Logout from Auth0
+    logout({ logoutParams: { returnTo: logoutReturnTo } });
+    console.log("[Chat] Auth0 logout initiated");
   };
 
   if (isLoading) return <div className="p-6 text-white">Loading...</div>;
@@ -751,6 +1141,9 @@ export default function ChatPage() {
   return (
     <>
       <ChatLayout
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onCloseSidebar={() => setSidebarOpen(false)}
         sidebar={
           <Sidebar
             profile={profile}
@@ -759,14 +1152,20 @@ export default function ChatPage() {
             active={active}
             onSelect={(c) => {
               hydrateFromCache(c);
-              return setActiveConversation(c);
+              setActiveConversation(c);
+              setSidebarOpen(false);
             }}
-            onStartNewChat={startNewChat}
-            isConnected={isConnected}
-            typingStatus={typingStatus}
-            onSearch={handleUserSearch}
-            searchResults={searchResults}
-            searchLoading={searchLoading}
+          onStartNewChat={startNewChat}
+          onCreateGroup={createGroup}
+          onGroupSearch={handleGroupSearch}
+          groupSearchResults={groupSearchResults}
+          groupSearchLoading={groupSearchLoading}
+          groupSearchError={groupSearchError}
+          isConnected={isConnected}
+          typingStatus={typingStatus}
+          onSearch={handleUserSearch}
+          searchResults={searchResults}
+          searchLoading={searchLoading}
             searchError={searchError}
           />
         }
@@ -775,15 +1174,16 @@ export default function ChatPage() {
             title={active?.title ?? "Select a chat"}
             subtitle={subtitle}
             typingLabel={
-              typingStatus &&
-              active &&
-              typingStatus.id === active.id &&
-              typingStatus.type === active.type
-                ? typingStatus.label
-                : ""
+            typingStatus &&
+            active &&
+            typingStatus.id === active.id &&
+            typingStatus.type === active.type
+              ? typingStatus.label
+              : ""
             }
-            photo={profilePhoto}
+            photo={undefined}
             onLogout={onLogout}
+            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           />
         }
         messageList={
@@ -826,7 +1226,7 @@ export default function ChatPage() {
           ) : null
         }
         rightPanel={
-          <div className="w-full h-full rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-4 text-sm text-purple-100 space-y-3">
+          <div className="w-full h-full rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-4 text-sm text-purple-100 space-y-4">
             <div className="font-semibold mb-1">Info</div>
             <div className="text-xs text-purple-200">
               Signed in as <span className="font-semibold text-white">{user?.email || userID}</span>
@@ -837,6 +1237,73 @@ export default function ChatPage() {
             <div className="text-xs text-purple-200">
               Status: <span className="font-semibold text-white">{subtitle}</span>
             </div>
+            {active?.type === ZIMConversationType.Group && (
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-white flex items-center justify-between">
+                  Group members
+                  {groupAdmins[active.id] === userID && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-100">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-40 overflow-auto space-y-1 pr-1">
+                  {(groupMembers[active.id] || []).map((m) => (
+                    <div
+                      key={m?.userID || m?.memberID || Math.random()}
+                      className="text-xs text-purple-100 bg-white/5 rounded-lg px-2 py-1 flex items-center justify-between"
+                    >
+                      <span className="truncate">{m?.userID || m?.memberID || "member"}</span>
+                      {m?.role === 1 && (
+                        <span className="text-[10px] text-amber-200 ml-2">Owner</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {groupAdmins[active.id] === userID && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-purple-200">Add members</div>
+                    <div className="flex gap-2">
+                      <input
+                        value={groupInviteInput}
+                        onChange={(e) => setGroupInviteInput(e.target.value)}
+                        placeholder="email/userIDs, comma separated"
+                        className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-xs hover:bg-white/15 transition"
+                        onClick={() => {
+                          addMembersToGroup(active.id, groupInviteInput.split(","));
+                          setGroupInviteInput("");
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <div className="text-xs text-purple-200">Remove members</div>
+                    <div className="flex gap-2">
+                      <input
+                        value={groupRemoveInput}
+                        onChange={(e) => setGroupRemoveInput(e.target.value)}
+                        placeholder="email/userIDs, comma separated"
+                        className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-xs hover:bg-white/15 transition"
+                        onClick={() => {
+                          removeMembersFromGroup(active.id, groupRemoveInput.split(","));
+                          setGroupRemoveInput("");
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="text-xs text-purple-200">
               Tip: Long-press or click a message to react, reply, forward, or delete.
             </div>

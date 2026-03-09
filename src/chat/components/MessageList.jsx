@@ -34,10 +34,8 @@ export default function MessageList({
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages?.length]);
 
-  const rendered = useMemo(
-    () => (messages ?? []).filter((m) => m?.type === ZIMMessageType.Text),
-    [messages],
-  );
+  // Render all messages; MessageBubble will handle type-specific display (text/other).
+  const rendered = useMemo(() => messages ?? [], [messages]);
 
   const openPopover = (message, anchorEl) => {
     if (!anchorEl) return;
@@ -63,7 +61,7 @@ export default function MessageList({
     <div className="h-full flex flex-col relative">
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-6 space-y-3"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 py-4 sm:py-6 space-y-3"
       >
         {rendered.map((msg) => {
           const isSelf = msg.senderUserID === selfUserID;

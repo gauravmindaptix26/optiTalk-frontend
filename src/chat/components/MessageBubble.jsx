@@ -1,5 +1,6 @@
 import React from "react";
 import { useLongPress } from "../hooks/useLongPress";
+import { ZIMMessageType } from "../zego/zimConstants";
 
 const formatTime = (timestamp) => {
   if (!timestamp) return "";
@@ -41,6 +42,14 @@ export default function MessageBubble({
     (_, target) => onOpenPopover?.(target),
   );
 
+  const isText = msg?.type === ZIMMessageType.Text;
+  const displayContent = (() => {
+    if (msg.revoked) return "Message deleted";
+    if (isText) return msg.message;
+    // Basic fallback for non-text payloads so they still show up in-thread
+    return msg?.message || "[Unsupported message type]";
+  })();
+
   return (
     <div className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
       <div
@@ -53,7 +62,7 @@ export default function MessageBubble({
             onOpenPopover?.(e.currentTarget);
           }
         }}
-        className={`group relative max-w-[75%] rounded-2xl px-4 py-3 transition transform hover:-translate-y-[1px] ${
+        className={`group relative w-fit max-w-[88%] sm:max-w-[75%] rounded-2xl px-4 py-3 transition transform hover:-translate-y-[1px] ${
           isSelf
             ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
             : "bg-white/10 text-white border border-white/10"
@@ -72,12 +81,8 @@ export default function MessageBubble({
           </div>
         )}
 
-        <div
-          className={`whitespace-pre-wrap break-words ${
-            msg.revoked ? "italic text-purple-200" : ""
-          }`}
-        >
-          {msg.revoked ? "Message deleted" : msg.message}
+        <div className={`whitespace-pre-wrap break-words ${msg.revoked ? "italic text-purple-200" : ""}`}>
+          {displayContent}
         </div>
 
         <div
