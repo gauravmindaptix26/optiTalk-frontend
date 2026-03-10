@@ -1,136 +1,103 @@
-## ZegoCloud Chat (ZIM) - One-to-One Peer Messaging
+## ZegoCloud Chat (ZIM)
 
-This app uses **ZegoCloud ZIM (Instant Messaging)** for real-time one-to-one peer messaging between users.
+This app uses **ZegoCloud ZIM (Instant Messaging)** with **Auth0** authentication for real-time chat.
 
-### Current Focus: One-to-One Peer Messaging
+### Current Scope
 
-The primary implementation is **peer-to-peer (one-to-one) messaging** between two users.
+The app currently supports:
+- Peer chat
+- Group chat
+- Conversation list and unread badges
+- Typing indicators
+- Read receipts
+- Reactions
+- Reply and forward actions
+- Delete for me / revoke for all
+- Profile editing
+- User search and group member management
 
-**Message Flow:**
-```
-User A Types Message → handleSend() → zim.sendMessage()
-                         ↓
-Local state updated → MessageList displays sent message
-                         ↓
-User B receives peerMessageReceived event
-                         ↓
-handleIncoming() → merge messages → display in real-time
+### Message Flow
+
+```text
+User A Types Message -> handleSend() -> zim.sendMessage()
+                                |
+                                v
+Local state updated -> MessageList renders sent message
+                                |
+                                v
+User B receives peer/group event from ZIM
+                                |
+                                v
+handleIncoming() -> merge messages -> update sidebar + thread
 ```
 
 ### Required Environment Variables
 
-**Backend (`backend/.env`)**
+Backend (`backend/.env`)
+
+```bash
+ZEGO_APP_ID=123456789
+ZEGO_SERVER_SECRET=your_server_secret_from_zego
+AUTH0_DOMAIN=your-auth0-domain
+AUTH0_AUDIENCE=your-auth0-api-audience
+FRONTEND_ORIGIN=https://your-frontend-domain
+```
+
+Frontend (`frontend/.env`)
+
 ```bash
 VITE_ZEGO_APP_ID=123456789
-VITE_ZEGO_SERVER_SECRET=your_server_secret_from_zego
+VITE_ZEGO_TOKEN_ENDPOINT=https://your-backend-domain/api/token
+VITE_API_BASE=https://your-backend-domain
+VITE_AUTH0_DOMAIN=your-auth0-domain
+VITE_AUTH0_CLIENT_ID=your-auth0-client-id
+VITE_AUTH0_REDIRECT_URI=https://your-frontend-domain/chat
 ```
 
-**Frontend (`frontend/.env`)**
-```bash
-VITE_ZEGO_APP_ID=123456789
-VITE_ZEGO_TOKEN_ENDPOINT=http://localhost:3000/api/token
-VITE_API_BASE=http://localhost:3000
-```
+### Core Messaging Implementation
 
-### One-to-One Messaging Implementation
+Key file:
+- `frontend/src/chat/ChatPage.jsx`
 
-#### Key Functions (ChatPage.jsx)
+Important responsibilities in that file:
+- Bootstrapping Auth0 + Zego session
+- Fetching token from backend
+- Loading conversations/history
+- Handling incoming peer/group/room events
+- Reactions, receipts, revoke events
+- Group creation and member management
+- Search and local cache hydration
 
-1. **handleSend(payload)** - Line ~901
-   - Called when user submits message from MessageComposer
-   - Attaches reply context if replying to another message
-   - Calls send() to post to Zego
+### Working Features
 
-2. **send(message)** - Line ~803
-   - Uses zim.sendMessage(message, conversationID, conversationType, config)
-   - Updates local messagesByConv state immediately
-   - Message appears instantly in UI
-
-3. **handleIncoming(type, conversationID, list)** - Line ~280
-   - Called when peerMessageReceived event fires
-   - Merges incoming messages with existing history
-   - Updates conversation list with lastMessage and unreadCount
-   - Handles typing indicators (custom message type 200)
-
-#### Message Event Listener (ChatPage.jsx - useEffect)
-```javascript
-zim.on("peerMessageReceived", (_zim, data) => {
-  handleIncoming(
-    ZIMConversationType.Peer,
-    data.fromConversationID,  // Sender's user ID
-    data.messageList          // Array of new messages
-  );
-});
-```
-
-### Message Structure
-
-```javascript
-{
-  messageID: "unique-id",
-  senderUserID: "sender@example.com",
-  conversationID: "recipient@example.com",
-  conversationType: 0,  // 0 = Peer (one-to-one)
-  messageType: 1,       // 1 = Text message
-  message: "Hello!",
-  timestamp: 1704931200000,
-  receiptStatus: 0,     // 0=Sent, 1=Delivered, 2=Read
-  reactions: [],        // Emoji reactions
-  extendedData: "{}"    // JSON for metadata (replies, etc.)
-}
-```
-
-### Testing One-to-One Messaging
-
-**Step 1:** Login with two different users
-- User A in Chrome
-- User B in Firefox
-
-**Step 2:** User A starts conversation
-- Search for User B's email
-- Click result to create peer conversation
-
-**Step 3:** User A sends message
-- Type message
-- Click Send
-
-**Step 4:** Verify on User B
-- Message appears instantly
-- Conversation shows in sidebar
-- Unread count increases
-
-**Step 5:** User B replies
-- Type response
-- Message appears in User A's view
-
-### Important Notes
-
-✅ **What's Working:**
-- One-to-one peer messaging send/receive
-- Real-time message delivery
+- One-to-one messaging
+- Group messaging
+- Real-time delivery
 - Conversation list management
-- Message history/caching
-- Typing indicators (basic)
+- Message history cache
+- Typing indicators
+- Read receipts
+- Reactions
+- Reply and forward
+- Delete and revoke
+- User search
+- Profile sync
 
-❌ **Not Yet Implemented:**
-- Message notifications (desktop/toast/mobile)
-- Message reactions UI
-- Message replies/threading
-- Message search
-- Message edit/delete
+### Still Missing Or Weak
+
+- Notifications (desktop/toast/mobile)
+- In-chat message search
 - Media attachments
-- Emoji picker
+- Emoji picker UI in composer
+- Presence / last seen
+- Persistent database-backed user directory
+- Better message pagination/history loading
 
-### Token Endpoint
+### Deployment Notes
 
-Frontend calls:
-`GET /api/token?userID=user@example.com`
-
-Expected response:
-```json
-{ "token": "zego_zim_token_here", "userID": "user@example.com" }
-```
-
-Notes:
-- Do **not** generate tokens in the browser (it requires your Zego server secret).
-- Implement token generation on a backend (Node/Express, etc.) using Zego's official token generation method.
+- Frontend must point to deployed backend using:
+  - `VITE_API_BASE`
+  - `VITE_ZEGO_TOKEN_ENDPOINT`
+- Backend must allow deployed frontend origin using:
+  - `FRONTEND_ORIGIN`
+- Auth0 callback/logout/web origins must match deployed frontend URL.

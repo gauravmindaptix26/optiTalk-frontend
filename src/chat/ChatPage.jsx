@@ -30,6 +30,7 @@ import { useProfile } from "../profile/useProfile";
 import ProfilePanel from "../profile/ProfilePanel";
 import { getZimSdk } from "./zego/zimSdk";
 import { getApiBase } from "./helpers/apiBase";
+import { mergeMessageMetadata } from "./messageMetadata";
 
 const LAST_CONV_KEY = "zego:lastConversation";
 const GROUP_ADMIN_KEY = "zego:groupAdmins";
@@ -903,10 +904,7 @@ export default function ChatPage() {
   const handleSend = async (payload) => {
     const base = { ...payload };
     if (replyTo) {
-      base.extendedData = JSON.stringify({
-        ...(base.extendedData ? JSON.parse(base.extendedData) : {}),
-        replyTo,
-      });
+      base.extendedData = mergeMessageMetadata(base.extendedData, { replyTo });
     }
     await send(base);
     setReplyTo(null);

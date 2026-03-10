@@ -6,7 +6,6 @@ import React, {
   lazy,
   Suspense,
 } from "react";
-import { ZIMMessageType } from "../zego/zimConstants";
 import MessageBubble from "./MessageBubble";
 
 const MessageActionsPopover = lazy(() => import("./MessageActionsPopover"));
