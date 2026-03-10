@@ -44,8 +44,15 @@ export default function MessageList({
   onReact,
   onReply,
   onForward,
+  onTogglePin,
   onDeleteForMe,
   onDeleteForAll,
+  receiptInfoByMessageID = {},
+  receiptDetailState,
+  onOpenReceiptDetails,
+  onCloseReceiptDetails,
+  highlightedMessageID = "",
+  searchQuery = "",
 }) {
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -85,6 +92,15 @@ export default function MessageList({
 
     return items;
   }, [messages]);
+
+  useEffect(() => {
+    if (!highlightedMessageID || !scrollRef.current) return;
+    const node = scrollRef.current.querySelector(
+      `[data-message-id="${highlightedMessageID}"]`,
+    );
+    if (!node) return;
+    node.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [highlightedMessageID, rendered.length]);
 
   const openPopover = (message, anchorEl) => {
     if (!anchorEl) return;
@@ -129,15 +145,28 @@ export default function MessageList({
             const isSelf = message.senderUserID === selfUserID;
 
             return (
-              <MessageBubble
+              <div
                 key={item.key}
-                msg={message}
-                isSelf={isSelf}
-                selfUserID={selfUserID}
-                onOpenPopover={(target) =>
-                  openPopover({ ...message, isSelf }, target)
+                data-message-id={message.messageID ?? message.localMessageID ?? ""}
+                className={
+                  highlightedMessageID &&
+                  (message.messageID === highlightedMessageID ||
+                    message.localMessageID === highlightedMessageID)
+                    ? "rounded-[1.6rem] ring-2 ring-cyan-300/40 ring-offset-2 ring-offset-transparent transition"
+                    : ""
                 }
-              />
+              >
+                <MessageBubble
+                  msg={message}
+                  isSelf={isSelf}
+                  selfUserID={selfUserID}
+                  receiptInfo={receiptInfoByMessageID[message.messageID]}
+                  onOpenReceiptDetails={onOpenReceiptDetails}
+                  onOpenPopover={(target) =>
+                    openPopover({ ...message, isSelf }, target)
+                  }
+                />
+              </div>
             );
           })}
 
@@ -178,6 +207,10 @@ export default function MessageList({
               onForward?.(message);
               closePopover();
             }}
+            onTogglePin={(message) => {
+              onTogglePin?.(message);
+              closePopover();
+            }}
             onDeleteRequest={handleDeleteRequest}
           />
         )}
@@ -196,6 +229,82 @@ export default function MessageList({
           />
         )}
       </Suspense>
+
+      {receiptDetailState?.open && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <div className="max-h-[78vh] w-full max-w-md overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#101735] shadow-2xl shadow-slate-950/40">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Read receipts</div>
+                <div className="text-xs text-purple-200">
+                  {(receiptDetailState.readMembers?.length || 0)} read, {(receiptDetailState.unreadMembers?.length || 0)} unread
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onCloseReceiptDetails}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
+              >
+                x
+              </button>
+            </div>
+            <div className="scrollbar-hidden max-h-[calc(78vh-74px)] space-y-4 overflow-y-auto p-4">
+              {receiptDetailState.loading ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-6 text-center text-sm text-purple-200">
+                  Loading receipt details...
+                </div>
+              ) : receiptDetailState.error ? (
+                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                  {receiptDetailState.error}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">
+                      Read members
+                    </div>
+                    <div className="space-y-2">
+                      {(receiptDetailState.readMembers || []).map((member) => (
+                        <div
+                          key={`read-${member.userID}`}
+                          className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white"
+                        >
+                          {member.userName || member.memberNickname || member.userID}
+                        </div>
+                      ))}
+                      {!receiptDetailState.readMembers?.length && (
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                          No one has read this message yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">
+                      Unread members
+                    </div>
+                    <div className="space-y-2">
+                      {(receiptDetailState.unreadMembers || []).map((member) => (
+                        <div
+                          key={`unread-${member.userID}`}
+                          className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white"
+                        >
+                          {member.userName || member.memberNickname || member.userID}
+                        </div>
+                      ))}
+                      {!receiptDetailState.unreadMembers?.length && (
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                          Everyone in this group has read the message.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

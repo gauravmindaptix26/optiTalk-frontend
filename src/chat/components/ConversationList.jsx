@@ -18,8 +18,7 @@ export default function ConversationList({
         const isTyping =
           typingStatus &&
           typingStatus.id === conversation.id &&
-          typingStatus.type === conversation.type &&
-          conversation.type === 0;
+          typingStatus.type === conversation.type;
 
         const typeLabel =
           conversation.type === 2

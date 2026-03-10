@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ZIMMessageType } from "../zego/zimConstants";
-import {
-  ATTACHMENT_PLACEHOLDER,
-  stringifyMessageMetadata,
-} from "../messageMetadata";
+import { stringifyMessageMetadata } from "../messageMetadata";
 
 const EMOJIS = [
   "\u{1F600}",
@@ -15,21 +12,13 @@ const EMOJIS = [
   "\u{1F64F}",
   "\u{2764}\u{FE0F}",
 ];
-const MAX_ATTACHMENT_BYTES = 120 * 1024;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 const formatBytes = (bytes) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
   return `${(bytes / 1024).toFixed(1)} KB`;
 };
-
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Could not read file"));
-    reader.readAsDataURL(file);
-  });
 
 export default function MessageComposer({ onSend, disabled, onTyping }) {
   const [text, setText] = useState("");
@@ -65,7 +54,19 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
     return () => document.removeEventListener("mousedown", handleClickAway);
   }, [pickerOpen]);
 
+  useEffect(
+    () => () => {
+      if (attachment?.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+    },
+    [attachment],
+  );
+
   const clearAttachment = () => {
+    if (attachment?.previewUrl) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
     setAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -75,16 +76,31 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
     const trimmed = text.trim();
     if ((!trimmed && !attachment) || disabled) return;
 
-    const payload = {
-      type: ZIMMessageType.Text,
-      message: trimmed || ATTACHMENT_PLACEHOLDER,
-    };
-
     if (attachment) {
-      payload.extendedData = stringifyMessageMetadata({ attachment });
+      const metadata = {
+        attachment: {
+          name: attachment.name,
+          type: attachment.type,
+          size: attachment.size,
+        },
+        caption: trimmed || "",
+      };
+      const payload = {
+        type: attachment.type.startsWith("image/")
+          ? ZIMMessageType.Image
+          : ZIMMessageType.File,
+        fileLocalPath: attachment.file,
+        fileName: attachment.name,
+        extendedData: stringifyMessageMetadata(metadata),
+      };
+      await onSend?.(payload);
+    } else {
+      const payload = {
+        type: ZIMMessageType.Text,
+        message: trimmed,
+      };
+      await onSend?.(payload);
     }
-
-    await onSend?.(payload);
 
     setText("");
     clearAttachment();
@@ -127,12 +143,17 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      if (attachment?.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
       setAttachment({
+        file,
         name: file.name,
         type: file.type || "application/octet-stream",
         size: file.size,
-        dataUrl,
+        previewUrl: file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : "",
       });
       setError("");
     } catch (err) {
@@ -163,9 +184,9 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
               Remove
             </button>
           </div>
-          {attachment.type.startsWith("image/") && (
+          {attachment.previewUrl && (
             <img
-              src={attachment.dataUrl}
+              src={attachment.previewUrl}
               alt={attachment.name}
               className="mt-3 max-h-40 rounded-xl border border-white/10 object-cover"
             />

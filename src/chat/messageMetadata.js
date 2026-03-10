@@ -32,7 +32,18 @@ export function getMessagePreview(message) {
 
   const metadata = parseMessageMetadata(message.extendedData);
   const attachment = metadata.attachment;
+  const caption = String(metadata.caption || "").trim();
   const text = String(message.message || "").trim();
+
+  if (message.type === 11) {
+    return caption || "Photo";
+  }
+
+  if (message.type === 12) {
+    return caption
+      ? `Attachment | ${caption}`
+      : `Attachment | ${message.fileName || attachment?.name || "file"}`;
+  }
 
   if (attachment?.type?.startsWith("image/")) {
     return text && text !== ATTACHMENT_PLACEHOLDER ? `Photo | ${text}` : "Photo";

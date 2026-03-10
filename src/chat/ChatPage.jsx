@@ -6,13 +6,21 @@ import {
   enterRoomZim,
   getZim,
   leaveRoomZim,
+  leaveGroupZim,
   loginZim,
   logoutZim,
   createGroupZim,
+  dismissGroupZim,
   inviteToGroupZim,
+  queryGroupInfoZim,
   removeFromGroupZim,
   queryGroupMembersZim,
   joinGroupZim,
+  setGroupMemberRoleZim,
+  transferGroupOwnerZim,
+  updateGroupNameZim,
+  updateGroupNoticeZim,
+  updateGroupAvatarUrlZim,
 } from "./zego/zimClient";
 import {
   ZIMConnectionEvent,
@@ -35,6 +43,11 @@ import { getMessagePreview, mergeMessageMetadata } from "./messageMetadata";
 
 const LAST_CONV_KEY = "zego:lastConversation";
 const GROUP_ADMIN_KEY = "zego:groupAdmins";
+const GROUP_ROLE = {
+  Owner: 1,
+  Admin: 2,
+  Member: 3,
+};
 
 const toZegoUserID = (raw) =>
   String(raw ?? "")
@@ -65,6 +78,37 @@ const mergeUniqueMessages = (previous, incoming) => {
   return next;
 };
 
+const normalizeGroupInfo = (response, fallbackGroupID = "") => {
+  const groupInfo = response?.groupInfo || response?.info || {};
+  const baseInfo = groupInfo?.baseInfo || groupInfo;
+
+  return {
+    groupID: baseInfo?.groupID || groupInfo?.groupID || fallbackGroupID,
+    groupName: baseInfo?.groupName || groupInfo?.groupName || fallbackGroupID,
+    groupAvatarUrl:
+      baseInfo?.groupAvatarUrl || groupInfo?.groupAvatarUrl || "",
+    groupNotice: groupInfo?.groupNotice || baseInfo?.groupNotice || "",
+    ownerUserID: groupInfo?.ownerUserID || baseInfo?.ownerUserID || "",
+    memberCount:
+      Number(
+        groupInfo?.memberCount ??
+          baseInfo?.memberCount ??
+          groupInfo?.memberNumber ??
+          baseInfo?.memberNumber ??
+          0,
+      ) || 0,
+  };
+};
+
+const getGroupMemberRole = (member) =>
+  Number(member?.memberRole ?? member?.role ?? 0);
+
+const getGroupRoleLabel = (role) => {
+  if (role === GROUP_ROLE.Owner) return "Owner";
+  if (role === GROUP_ROLE.Admin) return "Admin";
+  return "Member";
+};
+
 export default function ChatPage() {
   const { user, logout, isAuthenticated, isLoading, getIdTokenClaims } =
     useAuth0();
@@ -88,6 +132,16 @@ export default function ChatPage() {
   const [groupSearchError, setGroupSearchError] = useState("");
   const groupSearchAbortRef = useRef(null);
   const [groupMembers, setGroupMembers] = useState({});
+  const [groupInfoByID, setGroupInfoByID] = useState({});
+  const [receiptInfoByMessageID, setReceiptInfoByMessageID] = useState({});
+  const [receiptDetailState, setReceiptDetailState] = useState({
+    open: false,
+    loading: false,
+    message: null,
+    readMembers: [],
+    unreadMembers: [],
+    error: "",
+  });
   const [groupAdmins, setGroupAdmins] = useState(() => {
     try {
       const raw = localStorage.getItem(GROUP_ADMIN_KEY);
@@ -98,6 +152,14 @@ export default function ChatPage() {
   });
   const [groupInviteInput, setGroupInviteInput] = useState("");
   const [groupRemoveInput, setGroupRemoveInput] = useState("");
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [groupNoticeInput, setGroupNoticeInput] = useState("");
+  const [groupAvatarInput, setGroupAvatarInput] = useState("");
+  const [groupTransferOwnerInput, setGroupTransferOwnerInput] = useState("");
+  const [messageSearchOpen, setMessageSearchOpen] = useState(false);
+  const [messageSearchInput, setMessageSearchInput] = useState("");
+  const [focusedMessageID, setFocusedMessageID] = useState("");
+  const [pinnedMessages, setPinnedMessages] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -109,11 +171,50 @@ export default function ChatPage() {
   const browserNotificationTimestampsRef = useRef(new Map());
   const lastNotifiedMessageRef = useRef(new Map());
   const browserNotificationsRef = useRef(new Map());
+  const receiptRefreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     activeRef.current = active;
     setTypingStatus(null);
+    setReceiptDetailState((prev) =>
+      prev.open
+        ? {
+            open: false,
+            loading: false,
+            message: null,
+            readMembers: [],
+            unreadMembers: [],
+            error: "",
+          }
+        : prev,
+    );
   }, [active]);
+
+  useEffect(() => {
+    setMessageSearchInput("");
+    setFocusedMessageID("");
+    setPinnedMessages([]);
+  }, [active?.id, active?.type]);
+
+  useEffect(() => {
+    if (!active) return;
+    loadPinnedMessages(active).catch(() => {});
+  }, [active?.id, active?.type, activeMessages.length]);
+
+  useEffect(() => {
+    if (active?.type !== ZIMConversationType.Group) {
+      setGroupNameInput("");
+      setGroupNoticeInput("");
+      setGroupAvatarInput("");
+      setGroupTransferOwnerInput("");
+      return;
+    }
+
+    const groupInfo = groupInfoByID[active.id];
+    setGroupNameInput(groupInfo?.groupName || active.title || "");
+    setGroupNoticeInput(groupInfo?.groupNotice || "");
+    setGroupAvatarInput(groupInfo?.groupAvatarUrl || "");
+  }, [active, groupInfoByID]);
 
   const conversationsRef = useRef([]);
   const toastTimersRef = useRef(new Map());
@@ -151,6 +252,10 @@ export default function ChatPage() {
       notification.close();
     }
     browserNotificationsRef.current.clear();
+    if (receiptRefreshTimeoutRef.current) {
+      clearTimeout(receiptRefreshTimeoutRef.current);
+      receiptRefreshTimeoutRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -218,6 +323,20 @@ export default function ChatPage() {
   const profilePhoto = profile?.photo || (user?.picture ? String(user.picture) : "");
 
   const isConnected = status.phase === "connected";
+  const activeMessages = active
+    ? messagesByConv[convKey(active.type, active.id)] ?? []
+    : [];
+  const messageSearchResults = useMemo(() => {
+    const query = messageSearchInput.trim().toLowerCase();
+    if (!query) return [];
+    return activeMessages
+      .filter((message) =>
+        getMessagePreview(message).toLowerCase().includes(query) ||
+        String(message.senderUserID || "").toLowerCase().includes(query),
+      )
+      .slice()
+      .reverse();
+  }, [activeMessages, messageSearchInput]);
 
   const markConversationAsRead = async (conversation) => {
     if (!conversation) return;
@@ -227,6 +346,23 @@ export default function ChatPage() {
         conversation.id,
         conversation.type,
       );
+      if (conversation.type === ZIMConversationType.Group) {
+        const key = convKey(conversation.type, conversation.id);
+        const readableMessages = (messagesByConv[key] ?? []).filter(
+          (message) =>
+            message?.messageID &&
+            !message?.revoked &&
+            message?.senderUserID !== userID &&
+            message?.receiptStatus !== 2,
+        );
+        if (readableMessages.length) {
+          await zim.sendMessageReceiptsRead(
+            readableMessages,
+            conversation.id,
+            conversation.type,
+          );
+        }
+      }
     } catch {
       // ignore
     }
@@ -291,6 +427,30 @@ export default function ChatPage() {
     }));
   };
 
+  const loadPinnedMessages = async (conversation) => {
+    if (!conversation) {
+      setPinnedMessages([]);
+      return;
+    }
+    try {
+      const zim = getZim();
+      const result = await zim.queryPinnedMessageList(
+        conversation.id,
+        conversation.type,
+      );
+      setPinnedMessages(result?.messageList ?? []);
+    } catch {
+      setPinnedMessages([]);
+    }
+  };
+
+  const focusThreadMessage = (message) => {
+    const nextID = message?.messageID || message?.localMessageID || "";
+    if (!nextID) return;
+    setFocusedMessageID(nextID);
+    setMessageSearchOpen(true);
+  };
+
   const loadGroupMembers = async (groupID) => {
     if (!groupID) return;
     try {
@@ -301,8 +461,45 @@ export default function ChatPage() {
         resp?.memberList ||
         [];
       setGroupMembers((prev) => ({ ...prev, [groupID]: list }));
+      setGroupInfoByID((prev) => {
+        const current = prev[groupID] || { groupID };
+        return {
+          ...prev,
+          [groupID]: {
+            ...current,
+            memberCount: list.length || current.memberCount || 0,
+          },
+        };
+      });
     } catch (e) {
       console.warn("Failed to load group members", e);
+    }
+  };
+
+  const loadGroupInfo = async (groupID) => {
+    if (!groupID) return;
+    try {
+      const resp = await queryGroupInfoZim({ groupID });
+      const normalized = normalizeGroupInfo(resp, groupID);
+      setGroupInfoByID((prev) => ({
+        ...prev,
+        [groupID]: {
+          ...(prev[groupID] || {}),
+          ...normalized,
+        },
+      }));
+      if (normalized.groupName) {
+        setConversations((prev) =>
+          prev.map((conversation) =>
+            conversation.id === groupID &&
+            conversation.type === ZIMConversationType.Group
+              ? { ...conversation, title: normalized.groupName }
+              : conversation,
+          ),
+        );
+      }
+    } catch (e) {
+      console.warn("Failed to load group info", e);
     }
   };
 
@@ -342,8 +539,12 @@ export default function ChatPage() {
 
     await loadHistory(conversation);
     if (conversation.type === ZIMConversationType.Group) {
-      await loadGroupMembers(conversation.id);
+      await Promise.all([
+        loadGroupMembers(conversation.id),
+        loadGroupInfo(conversation.id),
+      ]);
     }
+    await loadPinnedMessages(conversation);
     await markConversationAsRead(conversation);
 
     setConversations((prev) =>
@@ -482,16 +683,20 @@ export default function ChatPage() {
 
     // Typing indicator detection for peer custom message.
     const typingMsg = (list ?? []).find(
-      (m) => m.type === 200 && m.subType === 1 && m.message === "typing",
+      (m) =>
+        m.type === ZIMMessageType.Custom &&
+        m.subType === 1 &&
+        m.message === "typing" &&
+        m.senderUserID !== userID,
     );
     if (typingMsg) {
-      const isActive =
-        activeRef.current?.id === fromConversationID &&
-        activeRef.current?.type === type;
       setTypingStatus({
         id: fromConversationID,
         type,
-        label: "typing...",
+        label:
+          type === ZIMConversationType.Group
+            ? `${typingMsg.senderUserID} is typing...`
+            : "typing...",
       });
       setTimeout(() => {
         setTypingStatus((prev) =>
@@ -595,6 +800,94 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
+    if (!active || active.type !== ZIMConversationType.Group) return undefined;
+
+    const outgoingMessages = activeMessages
+      .filter(
+        (message) =>
+          message?.senderUserID === userID &&
+          message?.messageID &&
+          !message?.revoked,
+      )
+      .slice(-20);
+
+    if (!outgoingMessages.length) return undefined;
+
+    let cancelled = false;
+    receiptRefreshTimeoutRef.current = setTimeout(async () => {
+      try {
+        const zim = getZim();
+        const result = await zim.queryMessageReceiptsInfo(
+          outgoingMessages,
+          active.id,
+          active.type,
+        );
+        if (cancelled) return;
+
+        const nextEntries = {};
+        for (const info of result?.infos ?? []) {
+          if (!info?.messageID) continue;
+          nextEntries[info.messageID] = info;
+        }
+
+        if (Object.keys(nextEntries).length) {
+          setReceiptInfoByMessageID((prev) => ({ ...prev, ...nextEntries }));
+        }
+      } catch {
+        // ignore receipt refresh noise
+      }
+    }, 220);
+
+    return () => {
+      cancelled = true;
+      if (receiptRefreshTimeoutRef.current) {
+        clearTimeout(receiptRefreshTimeoutRef.current);
+        receiptRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [active, activeMessages, userID]);
+
+  const openReceiptDetails = async (message) => {
+    if (!active || active.type !== ZIMConversationType.Group || !message) return;
+
+    setReceiptDetailState({
+      open: true,
+      loading: true,
+      message,
+      readMembers: [],
+      unreadMembers: [],
+      error: "",
+    });
+
+    try {
+      const zim = getZim();
+      const queryConfig = { count: 200, nextFlag: 0 };
+      const [readResult, unreadResult] = await Promise.all([
+        zim.queryGroupMessageReceiptReadMemberList(message, active.id, queryConfig),
+        zim.queryGroupMessageReceiptUnreadMemberList(message, active.id, queryConfig),
+      ]);
+
+      setReceiptDetailState({
+        open: true,
+        loading: false,
+        message,
+        readMembers: readResult?.userList ?? [],
+        unreadMembers: unreadResult?.userList ?? [],
+        error: "",
+      });
+    } catch (e) {
+      setReceiptDetailState({
+        open: true,
+        loading: false,
+        message,
+        readMembers: [],
+        unreadMembers: [],
+        error: e?.message || "Could not load receipt details",
+      });
+    }
+  };
+
+  useEffect(() => {
     let cancelled = false;
     let conversationRefreshTimer = null;
 
@@ -659,6 +952,8 @@ export default function ChatPage() {
         zim.off("messageReactionsChanged");
         zim.off("messageReceiptChanged");
         zim.off("messageRevokeReceived");
+        zim.off("groupStateChanged");
+        zim.off("groupMemberStateChanged");
 
         zim.on("peerMessageReceived", (_zim, data) => {
           if (cancelled) return;
@@ -746,6 +1041,25 @@ export default function ChatPage() {
             }
             return next;
           });
+        });
+
+        const refreshActiveGroupMeta = () => {
+          const current = activeRef.current;
+          if (!current || current.type !== ZIMConversationType.Group) return;
+          loadGroupMembers(current.id).catch(() => {});
+          loadGroupInfo(current.id).catch(() => {});
+        };
+
+        zim.on("groupStateChanged", () => {
+          if (cancelled) return;
+          refreshConversationList().catch(() => {});
+          refreshActiveGroupMeta();
+        });
+
+        zim.on("groupMemberStateChanged", () => {
+          if (cancelled) return;
+          refreshConversationList().catch(() => {});
+          refreshActiveGroupMeta();
         });
 
         zim.on("conversationChanged", () => {
@@ -1057,6 +1371,23 @@ export default function ChatPage() {
     try {
       const zim = getZim();
       await zim.sendConversationMessageReceiptRead(active.id, active.type);
+      if (active.type === ZIMConversationType.Group) {
+        const key = convKey(active.type, active.id);
+        const readableMessages = (messagesByConv[key] ?? []).filter(
+          (message) =>
+            message?.messageID &&
+            !message?.revoked &&
+            message?.senderUserID !== userID &&
+            message?.receiptStatus !== 2,
+        );
+        if (readableMessages.length) {
+          await zim.sendMessageReceiptsRead(
+            readableMessages,
+            active.id,
+            active.type,
+          );
+        }
+      }
     } catch {
       // ignore
     }
@@ -1074,6 +1405,35 @@ export default function ChatPage() {
       await zim.deleteMessageReaction(emoji, msg);
     } else {
       await zim.addMessageReaction(emoji, msg);
+    }
+  };
+
+  const handleTogglePin = async (msg) => {
+    if (!active || !msg) return;
+    try {
+      const zim = getZim();
+      const nextPinnedState = !msg.pinnedTime;
+      await zim.pinMessage(msg, nextPinnedState);
+
+      setMessagesByConv((prev) => {
+        const key = convKey(active.type, active.id);
+        return {
+          ...prev,
+          [key]: (prev[key] ?? []).map((message) =>
+            message.messageID === msg.messageID
+              ? {
+                  ...message,
+                  pinnedTime: nextPinnedState ? Date.now() : 0,
+                  pinnedUserID: nextPinnedState ? userID : "",
+                }
+              : message,
+          ),
+        };
+      });
+
+      await loadPinnedMessages(active);
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Pin update failed" });
     }
   };
 
@@ -1196,8 +1556,147 @@ export default function ChatPage() {
     try {
       await removeFromGroupZim({ groupID, userIDs: ids });
       await loadGroupMembers(groupID);
+      await loadGroupInfo(groupID);
     } catch (e) {
       setStatus({ phase: "error", error: e?.message || "Remove members failed" });
+    }
+  };
+
+  const handleUpdateGroupName = async (groupID) => {
+    const nextName = groupNameInput.trim();
+    if (!groupID || !nextName) return;
+    try {
+      await updateGroupNameZim({ groupID, groupName: nextName });
+      await loadGroupInfo(groupID);
+      setStatus({ phase: "connected", error: "" });
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Update group name failed" });
+    }
+  };
+
+  const handleUpdateGroupNotice = async (groupID) => {
+    if (!groupID) return;
+    try {
+      await updateGroupNoticeZim({ groupID, groupNotice: groupNoticeInput });
+      await loadGroupInfo(groupID);
+      setStatus({ phase: "connected", error: "" });
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Update group notice failed" });
+    }
+  };
+
+  const handleUpdateGroupAvatar = async (groupID) => {
+    if (!groupID) return;
+    try {
+      await updateGroupAvatarUrlZim({
+        groupID,
+        groupAvatarUrl: groupAvatarInput,
+      });
+      await loadGroupInfo(groupID);
+      setStatus({ phase: "connected", error: "" });
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Update group avatar failed" });
+    }
+  };
+
+  const removeGroupFromState = (groupID) => {
+    setConversations((prev) =>
+      prev.filter(
+        (conversation) =>
+          !(
+            conversation.id === groupID &&
+            conversation.type === ZIMConversationType.Group
+          ),
+      ),
+    );
+    setMessagesByConv((prev) => {
+      const next = { ...prev };
+      delete next[convKey(ZIMConversationType.Group, groupID)];
+      return next;
+    });
+    setGroupMembers((prev) => {
+      const next = { ...prev };
+      delete next[groupID];
+      return next;
+    });
+    setGroupInfoByID((prev) => {
+      const next = { ...prev };
+      delete next[groupID];
+      return next;
+    });
+    setGroupAdmins((prev) => {
+      const next = { ...prev };
+      delete next[groupID];
+      return next;
+    });
+    if (
+      activeRef.current?.id === groupID &&
+      activeRef.current?.type === ZIMConversationType.Group
+    ) {
+      setActive(null);
+    }
+  };
+
+  const handleTransferGroupOwner = async (groupID) => {
+    const nextOwner = toZegoUserID(groupTransferOwnerInput);
+    if (!groupID || !nextOwner) {
+      setStatus({ phase: "error", error: "Enter a valid new owner userID/email" });
+      return;
+    }
+    if (nextOwner === userID) {
+      setStatus({ phase: "error", error: "Choose another group member as the new owner" });
+      return;
+    }
+
+    try {
+      await transferGroupOwnerZim({ groupID, toUserID: nextOwner });
+      setGroupAdmins((prev) => ({ ...prev, [groupID]: nextOwner }));
+      setGroupTransferOwnerInput("");
+      await Promise.all([loadGroupInfo(groupID), loadGroupMembers(groupID)]);
+      setStatus({ phase: "connected", error: "" });
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Transfer ownership failed" });
+    }
+  };
+
+  const handleSetMemberRole = async (groupID, targetUserID, role) => {
+    if (!groupID || !targetUserID) return;
+    try {
+      await setGroupMemberRoleZim({
+        groupID,
+        userID: targetUserID,
+        role,
+      });
+      await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
+      setStatus({ phase: "connected", error: "" });
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Update group role failed" });
+    }
+  };
+
+  const handleLeaveGroup = async (groupID) => {
+    if (!groupID) return;
+    try {
+      await leaveGroupZim({ groupID });
+      removeGroupFromState(groupID);
+      setInfoPanelOpen(false);
+      setStatus({ phase: "connected", error: "" });
+      await refreshConversationList().catch(() => {});
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Leave group failed" });
+    }
+  };
+
+  const handleDismissGroup = async (groupID) => {
+    if (!groupID) return;
+    try {
+      await dismissGroupZim({ groupID });
+      removeGroupFromState(groupID);
+      setInfoPanelOpen(false);
+      setStatus({ phase: "connected", error: "" });
+      await refreshConversationList().catch(() => {});
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Dismiss group failed" });
     }
   };
 
@@ -1286,7 +1785,13 @@ export default function ChatPage() {
     });
 
   const sendTyping = async () => {
-    if (!active || active.type !== ZIMConversationType.Peer) return;
+    if (
+      !active ||
+      (active.type !== ZIMConversationType.Peer &&
+        active.type !== ZIMConversationType.Group)
+    ) {
+      return;
+    }
     if (typingTimeoutRef.current) return;
     typingTimeoutRef.current = setTimeout(() => {
       typingTimeoutRef.current = null;
@@ -1296,7 +1801,7 @@ export default function ChatPage() {
       const { ZIMMessageType, ZIMMessagePriority } = await getZimSdk();
       const zim = getZim();
       const typingMessage = {
-        type: ZIMMessageType.Custom,
+        type: ZIMMessageType.Custom ?? 200,
         message: "typing",
         subType: 1,
       };
@@ -1343,6 +1848,16 @@ export default function ChatPage() {
     setActive(null);
     setStatus({ phase: "idle", error: "" });
     setGroupMembers({});
+    setGroupInfoByID({});
+    setReceiptInfoByMessageID({});
+    setReceiptDetailState({
+      open: false,
+      loading: false,
+      message: null,
+      readMembers: [],
+      unreadMembers: [],
+      error: "",
+    });
     setGroupAdmins({});
     setSearchResults([]);
     setSearchError("");
@@ -1351,6 +1866,7 @@ export default function ChatPage() {
     setTypingStatus(null);
     setReplyTo(null);
     setCachedIdToken(null);
+    setGroupTransferOwnerInput("");
     setToasts([]);
     lastNotifiedMessageRef.current.clear();
     browserNotificationTimestampsRef.current.clear();
@@ -1376,6 +1892,32 @@ export default function ChatPage() {
         : status.phase === "connected"
           ? ""
           : "Connecting...";
+  const activeGroupInfo =
+    active?.type === ZIMConversationType.Group ? groupInfoByID[active.id] || null : null;
+  const activeGroupMembers =
+    active?.type === ZIMConversationType.Group ? groupMembers[active.id] || [] : [];
+  const activeGroupMemberCount =
+    activeGroupInfo?.memberCount || activeGroupMembers.length || 0;
+  const currentGroupMember = activeGroupMembers.find(
+    (member) =>
+      (member?.userID || member?.memberID || "").toLowerCase() === userID,
+  );
+  const currentGroupRole = getGroupMemberRole(currentGroupMember);
+  const isCurrentGroupOwner =
+    currentGroupRole === GROUP_ROLE.Owner ||
+    activeGroupInfo?.ownerUserID === userID;
+  const isCurrentGroupAdmin =
+    isCurrentGroupOwner ||
+    currentGroupRole === GROUP_ROLE.Admin ||
+    groupAdmins[active?.id] === userID;
+  const headerMetaLabel =
+    active?.type === ZIMConversationType.Group
+      ? `${activeGroupMemberCount || 0} members | group chat`
+      : active?.type === ZIMConversationType.Room
+        ? "Community room"
+        : active
+          ? "Direct conversation"
+          : "Live conversation";
 
   return (
     <>
@@ -1415,6 +1957,7 @@ export default function ChatPage() {
           <ChatHeader
             title={active?.title ?? "Select a chat"}
             subtitle={subtitle}
+            metaLabel={headerMetaLabel}
             typingLabel={
             typingStatus &&
             active &&
@@ -1425,6 +1968,11 @@ export default function ChatPage() {
             }
             photo={undefined}
             onLogout={onLogout}
+            onToggleSearch={() => {
+              setSidebarOpen(false);
+              setInfoPanelOpen(true);
+              setMessageSearchOpen((prev) => !prev);
+            }}
             onToggleSidebar={() => {
               setInfoPanelOpen(false);
               setSidebarOpen((prev) => !prev);
@@ -1463,17 +2011,36 @@ export default function ChatPage() {
           ) : (
             <>
               <MessageList
-                messages={messagesByConv[convKey(active.type, active.id)] ?? []}
+                messages={activeMessages}
                 selfUserID={userID}
                 onReact={handleReact}
                 onReply={handleReply}
                 onForward={handleForward}
+                onTogglePin={handleTogglePin}
                 onDeleteForMe={handleDeleteForMe}
                 onDeleteForAll={handleDeleteForAll}
+                receiptInfoByMessageID={receiptInfoByMessageID}
+                receiptDetailState={receiptDetailState}
+                onOpenReceiptDetails={openReceiptDetails}
+                onCloseReceiptDetails={() =>
+                  setReceiptDetailState({
+                    open: false,
+                    loading: false,
+                    message: null,
+                    readMembers: [],
+                    unreadMembers: [],
+                    error: "",
+                  })
+                }
+                highlightedMessageID={focusedMessageID}
+                searchQuery={messageSearchInput}
               />
               <div className="px-6 text-purple-200 text-sm">
-                {typingStatus && active?.type === ZIMConversationType.Peer
-                  ? `${active.title} is typing...`
+                {typingStatus &&
+                active &&
+                typingStatus.id === active.id &&
+                typingStatus.type === active.type
+                  ? typingStatus.label
                   : ""}
               </div>
             </>
@@ -1485,53 +2052,366 @@ export default function ChatPage() {
           ) : null
         }
         rightPanel={
-          <div className="w-full h-full rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-4 text-sm text-purple-100 space-y-4">
-            <div className="font-semibold mb-1">Info</div>
-            <div className="text-xs text-purple-200">
-              Signed in as <span className="font-semibold text-white">{user?.email || userID}</span>
+          <div className="h-full w-full space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-purple-100 backdrop-blur-xl">
+            <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(99,102,241,0.18),rgba(15,23,42,0.2))] p-4">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
+                Chat info
+              </div>
+              <div className="mt-2 text-lg font-semibold text-white">
+                {active?.title || "Workspace overview"}
+              </div>
+              <div className="mt-1 text-xs text-cyan-100/75">
+                {headerMetaLabel}
+              </div>
             </div>
-            <div className="text-xs text-purple-200">
-              Current room: <span className="font-semibold text-white">{appRoomID}</span>
+
+            <div className="grid gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+              <div className="text-xs text-purple-200">
+                Signed in as <span className="font-semibold text-white">{user?.email || userID}</span>
+              </div>
+              <div className="text-xs text-purple-200">
+                Current room: <span className="font-semibold text-white">{appRoomID}</span>
+              </div>
+              <div className="text-xs text-purple-200">
+                Status: <span className="font-semibold text-white">{subtitle || "Ready"}</span>
+              </div>
             </div>
-            <div className="text-xs text-purple-200">
-              Status: <span className="font-semibold text-white">{subtitle}</span>
-            </div>
-            {active?.type === ZIMConversationType.Group && (
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-white flex items-center justify-between">
-                  Group members
-                  {groupAdmins[active.id] === userID && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-100">
-                      Admin
-                    </span>
-                  )}
+
+            {active && (
+              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-white">Search messages</div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] text-cyan-50 transition hover:bg-white/15"
+                    onClick={() => setMessageSearchOpen((prev) => !prev)}
+                  >
+                    {messageSearchOpen ? "Hide" : "Open"}
+                  </button>
                 </div>
-                <div className="max-h-40 overflow-auto space-y-1 pr-1">
-                  {(groupMembers[active.id] || []).map((m) => (
-                    <div
-                      key={m?.userID || m?.memberID || Math.random()}
-                      className="text-xs text-purple-100 bg-white/5 rounded-lg px-2 py-1 flex items-center justify-between"
-                    >
-                      <span className="truncate">{m?.userID || m?.memberID || "member"}</span>
-                      {m?.role === 1 && (
-                        <span className="text-[10px] text-amber-200 ml-2">Owner</span>
+                {messageSearchOpen ? (
+                  <div className="space-y-3">
+                    <input
+                      value={messageSearchInput}
+                      onChange={(e) => setMessageSearchInput(e.target.value)}
+                      placeholder="Search text, sender, caption..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+                    />
+                    <div className="scrollbar-hidden max-h-48 space-y-2 overflow-y-auto pr-1">
+                      {(messageSearchInput.trim() ? messageSearchResults : []).map((message) => (
+                        <button
+                          key={`search-${message.messageID || message.localMessageID}`}
+                          type="button"
+                          className="w-full rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left transition hover:bg-white/[0.06]"
+                          onClick={() => focusThreadMessage(message)}
+                        >
+                          <div className="truncate text-xs font-medium text-white">
+                            {message.senderUserID}
+                          </div>
+                          <div className="mt-1 truncate text-xs text-purple-200">
+                            {getMessagePreview(message) || "Attachment"}
+                          </div>
+                        </button>
+                      ))}
+                      {messageSearchInput.trim() && !messageSearchResults.length && (
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                          No matching messages in this conversation yet.
+                        </div>
+                      )}
+                      {!messageSearchInput.trim() && (
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                          Search runs inside the currently open conversation.
+                        </div>
                       )}
                     </div>
-                  ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-purple-200">
+                    Tap open to search inside this conversation and jump to any message.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {active && (
+              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-white">Pinned messages</div>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-purple-100">
+                    {pinnedMessages.length}
+                  </span>
                 </div>
-                {groupAdmins[active.id] === userID && (
-                  <div className="space-y-2">
+                <div className="scrollbar-hidden max-h-52 space-y-2 overflow-y-auto pr-1">
+                  {pinnedMessages.map((message) => (
+                    <button
+                      key={`pinned-${message.messageID || message.localMessageID}`}
+                      type="button"
+                      className="w-full rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left transition hover:bg-white/[0.06]"
+                      onClick={() => focusThreadMessage(message)}
+                    >
+                      <div className="truncate text-xs font-medium text-white">
+                        {message.senderUserID}
+                      </div>
+                      <div className="mt-1 truncate text-xs text-purple-200">
+                        {getMessagePreview(message) || "Pinned message"}
+                      </div>
+                    </button>
+                  ))}
+                  {!pinnedMessages.length && (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                      Pin important messages from the message action menu.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {active?.type === ZIMConversationType.Group && (
+              <div className="space-y-3">
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      {activeGroupInfo?.groupAvatarUrl ? (
+                        <img
+                          src={activeGroupInfo.groupAvatarUrl}
+                          alt={activeGroupInfo?.groupName || active.title}
+                          className="h-12 w-12 shrink-0 rounded-2xl border border-white/10 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-lg font-semibold text-slate-950">
+                          {(activeGroupInfo?.groupName || active.title || "G")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/65">
+                        Group summary
+                      </div>
+                      <div className="mt-2 text-base font-semibold text-white">
+                        {activeGroupInfo?.groupName || active.title}
+                      </div>
+                      <div className="mt-1 break-all text-xs text-purple-200">
+                        ID: {activeGroupInfo?.groupID || active.id}
+                      </div>
+                    </div>
+                    </div>
+                    <span className="rounded-full bg-cyan-400/15 px-2.5 py-1 text-[11px] font-medium text-cyan-50">
+                      {activeGroupMemberCount || 0} members
+                    </span>
+                  </div>
+                  {activeGroupInfo?.groupNotice ? (
+                    <div className="mt-3 rounded-2xl border border-white/10 bg-black/15 px-3 py-2 text-xs text-purple-100">
+                      {activeGroupInfo.groupNotice}
+                    </div>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-white">
+                      {isCurrentGroupOwner
+                        ? "Owner"
+                        : isCurrentGroupAdmin
+                          ? "Admin"
+                          : "Member"}
+                    </span>
+                    {activeGroupInfo?.ownerUserID ? (
+                      <span className="rounded-full bg-white/10 px-2.5 py-1 text-purple-100">
+                        Owner: {activeGroupInfo.ownerUserID}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {isCurrentGroupOwner && (
+                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                    <div className="text-sm font-semibold text-white">
+                      Edit group
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-purple-200">Group name</div>
+                      <div className="flex gap-2">
+                        <input
+                          value={groupNameInput}
+                          onChange={(e) => setGroupNameInput(e.target.value)}
+                          placeholder="Enter group name"
+                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        />
+                        <button
+                          type="button"
+                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                          onClick={() => handleUpdateGroupName(active.id)}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-purple-200">Group notice</div>
+                      <textarea
+                        value={groupNoticeInput}
+                        onChange={(e) => setGroupNoticeInput(e.target.value)}
+                        rows={3}
+                        placeholder="Share a short group description or notice"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                      />
+                      <button
+                        type="button"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        onClick={() => handleUpdateGroupNotice(active.id)}
+                      >
+                        Update notice
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-purple-200">Avatar URL</div>
+                      <div className="flex gap-2">
+                        <input
+                          value={groupAvatarInput}
+                          onChange={(e) => setGroupAvatarInput(e.target.value)}
+                          placeholder="https://..."
+                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        />
+                        <button
+                          type="button"
+                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                          onClick={() => handleUpdateGroupAvatar(active.id)}
+                        >
+                          Update
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-white">
+                      Group members
+                    </div>
+                    {isCurrentGroupAdmin && (
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-100">
+                        Admin controls
+                      </span>
+                    )}
+                  </div>
+                  <div className="scrollbar-hidden max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                    {activeGroupMembers.map((m) => (
+                      (() => {
+                        const memberUserID = m?.userID || m?.memberID || "";
+                        const memberRole = getGroupMemberRole(m);
+                        const isSelfMember = memberUserID.toLowerCase() === userID;
+                        const canKickMember =
+                          isCurrentGroupAdmin &&
+                          !isSelfMember &&
+                          memberRole !== GROUP_ROLE.Owner &&
+                          (isCurrentGroupOwner || memberRole !== GROUP_ROLE.Admin);
+                        const canPromoteToAdmin =
+                          isCurrentGroupOwner &&
+                          !isSelfMember &&
+                          memberRole === GROUP_ROLE.Member;
+                        const canDemoteAdmin =
+                          isCurrentGroupOwner &&
+                          !isSelfMember &&
+                          memberRole === GROUP_ROLE.Admin;
+
+                        return (
+                          <div
+                            key={memberUserID || Math.random()}
+                            className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-xs text-purple-100"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate font-medium text-white">
+                                  {m?.userName || m?.memberNickname || memberUserID || "member"}
+                                </div>
+                                <div className="truncate text-[11px] text-purple-200">
+                                  {memberUserID}
+                                </div>
+                              </div>
+                              <span
+                                className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] ${
+                                  memberRole === GROUP_ROLE.Owner
+                                    ? "bg-amber-500/20 text-amber-100"
+                                    : memberRole === GROUP_ROLE.Admin
+                                      ? "bg-cyan-400/20 text-cyan-100"
+                                      : "bg-white/10 text-purple-100"
+                                }`}
+                              >
+                                {getGroupRoleLabel(memberRole)}
+                              </span>
+                            </div>
+                            {(canKickMember || canPromoteToAdmin || canDemoteAdmin) && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {canPromoteToAdmin && (
+                                  <button
+                                    type="button"
+                                    className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-medium text-cyan-50 transition hover:bg-cyan-400/15"
+                                    onClick={() =>
+                                      handleSetMemberRole(
+                                        active.id,
+                                        memberUserID,
+                                        GROUP_ROLE.Admin,
+                                      )
+                                    }
+                                  >
+                                    Make admin
+                                  </button>
+                                )}
+                                {canDemoteAdmin && (
+                                  <button
+                                    type="button"
+                                    className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-medium text-white transition hover:bg-white/15"
+                                    onClick={() =>
+                                      handleSetMemberRole(
+                                        active.id,
+                                        memberUserID,
+                                        GROUP_ROLE.Member,
+                                      )
+                                    }
+                                  >
+                                    Remove admin
+                                  </button>
+                                )}
+                                {canKickMember && (
+                                  <button
+                                    type="button"
+                                    className="rounded-full border border-red-400/25 bg-red-500/10 px-2.5 py-1 text-[10px] font-medium text-red-100 transition hover:bg-red-500/15"
+                                    onClick={() =>
+                                      removeMembersFromGroup(active.id, [memberUserID])
+                                    }
+                                  >
+                                    Remove member
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ))}
+                    {!activeGroupMembers.length && (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-4 text-center text-xs text-purple-200">
+                        Group members will appear here after the list syncs.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {isCurrentGroupAdmin && (
+                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                    <div className="text-sm font-semibold text-white">
+                      Manage members
+                    </div>
                     <div className="text-xs text-purple-200">Add members</div>
                     <div className="flex gap-2">
                       <input
                         value={groupInviteInput}
                         onChange={(e) => setGroupInviteInput(e.target.value)}
                         placeholder="email/userIDs, comma separated"
-                        className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
                       />
                       <button
                         type="button"
-                        className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-xs hover:bg-white/15 transition"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
                         onClick={() => {
                           addMembersToGroup(active.id, groupInviteInput.split(","));
                           setGroupInviteInput("");
@@ -1546,11 +2426,11 @@ export default function ChatPage() {
                         value={groupRemoveInput}
                         onChange={(e) => setGroupRemoveInput(e.target.value)}
                         placeholder="email/userIDs, comma separated"
-                        className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
                       />
                       <button
                         type="button"
-                        className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-xs hover:bg-white/15 transition"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
                         onClick={() => {
                           removeMembersFromGroup(active.id, groupRemoveInput.split(","));
                           setGroupRemoveInput("");
@@ -1561,6 +2441,60 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
+
+                {isCurrentGroupOwner && (
+                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                    <div className="text-sm font-semibold text-white">
+                      Ownership
+                    </div>
+                    <div className="text-xs text-purple-200">
+                      Transfer ownership before leaving if you want another member to manage the group.
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={groupTransferOwnerInput}
+                        onChange={(e) => setGroupTransferOwnerInput(e.target.value)}
+                        placeholder="new owner email/userID"
+                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                      />
+                      <button
+                        type="button"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        onClick={() => handleTransferGroupOwner(active.id)}
+                      >
+                        Transfer
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="text-sm font-semibold text-white">Group actions</div>
+                  <div className="mt-1 text-xs text-purple-200">
+                    Leave the group from this device. Owners may need to transfer ownership first depending on Zego group rules.
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/15"
+                    onClick={() => handleLeaveGroup(active.id)}
+                  >
+                    Leave group
+                  </button>
+                  {isCurrentGroupOwner && (
+                    <>
+                      <div className="mt-3 text-xs text-purple-200">
+                        Dismiss permanently closes the group for everyone.
+                      </div>
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-xl border border-red-500/35 bg-red-600/15 px-3 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-600/20"
+                        onClick={() => handleDismissGroup(active.id)}
+                      >
+                        Dismiss group
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             )}
             <div className="text-xs text-purple-200">

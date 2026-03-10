@@ -10,6 +10,7 @@ const PopoverContent = ({
   onReact,
   onReply,
   onForward,
+  onTogglePin,
   onDeleteRequest,
 }) => {
   const ref = useRef(null);
@@ -72,6 +73,12 @@ const PopoverContent = ({
           onClick={() => onForward?.(message)}
         >
           Forward
+        </button>
+        <button
+          className="hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-white/30 rounded-md px-1"
+          onClick={() => onTogglePin?.(message)}
+        >
+          {message?.pinnedTime ? "Unpin" : "Pin"}
         </button>
         <button
           className="text-red-200 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-red-200/40 rounded-md px-1"

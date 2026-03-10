@@ -11,6 +11,20 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
+      onwarn(warning, warn) {
+        const message = String(warning?.message || "");
+        const id = String(warning?.id || "");
+
+        if (
+          warning?.code === "EVAL" &&
+          id.includes("zego-zim-web") &&
+          message.includes("Use of eval")
+        ) {
+          return;
+        }
+
+        warn(warning);
+      },
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;

@@ -6,6 +6,8 @@ export default function ChatHeader({
   onLogout,
   photo,
   typingLabel,
+  metaLabel,
+  onToggleSearch,
   onToggleSidebar,
   onToggleInfoPanel,
 }) {
@@ -37,12 +39,20 @@ export default function ChatHeader({
           {title ?? "Select a chat"}
         </div>
         <div className="truncate text-[11px] uppercase tracking-[0.18em] text-cyan-100/65">
-          Live conversation
+          {metaLabel || "Live conversation"}
         </div>
         <div className="truncate text-sm text-purple-200">
           {typingLabel || subtitle || ""}
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onToggleSearch}
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/5 text-sm font-semibold transition hover:bg-white/10"
+        aria-label="Open message search"
+      >
+        /
+      </button>
       <button
         type="button"
         onClick={onToggleInfoPanel}

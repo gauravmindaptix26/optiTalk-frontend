@@ -14,9 +14,11 @@ export const ZIMConnectionEvent = {
 
 export const ZIMMessageType = {
   Text: 1,
+  Image: 11,
+  File: 12,
+  Custom: 200,
 };
 
 export const ZIMMessagePriority = {
   Low: 1,
 };
-

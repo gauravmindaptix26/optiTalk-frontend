@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLongPress } from "../hooks/useLongPress";
 import { ZIMMessageType } from "../zego/zimConstants";
 import {
@@ -19,10 +19,14 @@ export default function MessageBubble({
   isSelf,
   selfUserID,
   onOpenPopover,
+  receiptInfo,
+  onOpenReceiptDetails,
 }) {
   const metadata = parseMessageMetadata(msg.extendedData);
   const reply = metadata.replyTo ?? null;
   const attachment = metadata.attachment ?? null;
+  const caption = String(metadata.caption || "").trim();
+  const [localMediaUrl, setLocalMediaUrl] = useState("");
 
   const reactions = msg.reactions ?? [];
   const reactionSummary = reactions.reduce((acc, reaction) => {
@@ -47,12 +51,40 @@ export default function MessageBubble({
   );
 
   const isText = msg?.type === ZIMMessageType.Text;
+  const isImage = msg?.type === ZIMMessageType.Image;
+  const isFile = msg?.type === ZIMMessageType.File;
+  const mediaUrl =
+    msg?.largeImageDownloadUrl ||
+    msg?.fileDownloadUrl ||
+    msg?.thumbnailDownloadUrl ||
+    localMediaUrl;
+  const fileLabel = msg?.fileName || attachment?.name || "Attachment";
   const displayContent = (() => {
     if (msg.revoked) return "Message deleted";
     if (isText) return msg.message;
+    if (isImage || isFile) return caption;
     return msg?.message || "[Unsupported message type]";
   })();
   const showText = displayContent && displayContent !== ATTACHMENT_PLACEHOLDER;
+  const readCount = Number(receiptInfo?.readMemberCount ?? 0);
+  const unreadCount = Number(receiptInfo?.unreadMemberCount ?? 0);
+  const showGroupReceiptSummary =
+    isSelf &&
+    msg?.conversationType === 2 &&
+    !!msg?.messageID &&
+    !msg?.revoked &&
+    (readCount > 0 || unreadCount > 0);
+
+  useEffect(() => {
+    if (!(msg?.fileLocalPath instanceof File)) {
+      setLocalMediaUrl("");
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(msg.fileLocalPath);
+    setLocalMediaUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [msg]);
 
   return (
     <div className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
@@ -91,7 +123,7 @@ export default function MessageBubble({
           </div>
         )}
 
-        {attachment && !msg.revoked && (
+        {(attachment || isImage || isFile) && !msg.revoked && (
           <div
             className={`mb-3 overflow-hidden rounded-2xl border ${
               isSelf
@@ -99,34 +131,46 @@ export default function MessageBubble({
                 : "border-white/10 bg-black/10"
             }`}
           >
-            {attachment.type?.startsWith("image/") ? (
-              <img
-                src={attachment.dataUrl}
-                alt={attachment.name || "attachment"}
-                className="max-h-64 w-full object-cover"
-              />
+            {isImage || attachment?.type?.startsWith("image/") ? (
+              mediaUrl ? (
+                <img
+                  src={mediaUrl}
+                  alt={fileLabel}
+                  className="max-h-64 w-full object-cover"
+                />
+              ) : (
+                <div className="px-3 py-4 text-xs text-purple-200">
+                  Uploading image...
+                </div>
+              )
             ) : (
               <div className="flex items-center justify-between gap-3 px-3 py-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
-                    {attachment.name || "Attachment"}
+                    {fileLabel}
                   </div>
                   <div className="text-xs text-purple-200">
-                    {attachment.type || "file"}
+                    {msg?.fileSize || attachment?.size
+                      ? `${attachment?.type || "file"} | ${Math.ceil((msg?.fileSize || attachment?.size) / 1024)} KB`
+                      : attachment?.type || "file"}
                   </div>
                 </div>
-                <a
-                  href={attachment.dataUrl}
-                  download={attachment.name || "attachment"}
-                  className={`rounded-xl px-3 py-2 text-xs ${
-                    isSelf
-                      ? "border border-slate-950/10 bg-slate-950/10 hover:bg-slate-950/15"
-                      : "border border-white/10 bg-white/10 hover:bg-white/15"
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Download
-                </a>
+                {mediaUrl ? (
+                  <a
+                    href={mediaUrl}
+                    download={fileLabel}
+                    className={`rounded-xl px-3 py-2 text-xs ${
+                      isSelf
+                        ? "border border-slate-950/10 bg-slate-950/10 hover:bg-slate-950/15"
+                        : "border border-white/10 bg-white/10 hover:bg-white/15"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Download
+                  </a>
+                ) : (
+                  <span className="text-xs text-purple-200">Uploading...</span>
+                )}
               </div>
             )}
           </div>
@@ -154,6 +198,23 @@ export default function MessageBubble({
           {formatTime(msg.timestamp)}
           {isSelf && <span className={tickColor}>{tick}</span>}
         </div>
+
+        {showGroupReceiptSummary && (
+          <button
+            type="button"
+            className={`mt-2 rounded-full px-2.5 py-1 text-[11px] transition ${
+              isSelf
+                ? "bg-slate-950/10 text-slate-950/75 hover:bg-slate-950/15"
+                : "bg-white/10 text-purple-100 hover:bg-white/15"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenReceiptDetails?.(msg);
+            }}
+          >
+            {`Read by ${readCount}${unreadCount > 0 ? ` / ${readCount + unreadCount}` : ""}`}
+          </button>
+        )}
 
         {Object.keys(reactionSummary).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2 text-xs">

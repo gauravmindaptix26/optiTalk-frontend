@@ -169,9 +169,7 @@ export async function createGroupZim({ groupName, userIDs = [] }) {
     groupName: (groupName || "").trim(),
     groupAvatarUrl: "",
   };
-  const members = (userIDs || [])
-    .filter(Boolean)
-    .map((id) => ({ userID: id }));
+  const members = (userIDs || []).filter(Boolean);
 
   console.log(`[ZIM] createGroupZim called with groupName=${info.groupName}, members=${JSON.stringify(members)}`);
   const resp = await zimInstance.createGroup(info, members);
@@ -232,9 +230,9 @@ export async function createGroupZim({ groupName, userIDs = [] }) {
 
 export async function inviteToGroupZim({ groupID, userIDs = [] }) {
   if (!zimInstance) await createZim();
-  const members = (userIDs || []).filter(Boolean).map((id) => ({ userID: id }));
+  const members = (userIDs || []).filter(Boolean);
   console.log(`[ZIM] inviteToGroupZim called with groupID=${groupID}, members=${JSON.stringify(members)}`);
-  const resp = await zimInstance.inviteUsersIntoGroup(groupID, members);
+  const resp = await zimInstance.inviteUsersIntoGroup(members, groupID);
   console.log("[ZIM] inviteUsersIntoGroup response:", resp);
   return resp;
 }
@@ -242,7 +240,7 @@ export async function inviteToGroupZim({ groupID, userIDs = [] }) {
 export async function removeFromGroupZim({ groupID, userIDs = [] }) {
   if (!zimInstance) await createZim();
   const ids = (userIDs || []).filter(Boolean);
-  return zimInstance.kickGroupMembers(groupID, ids);
+  return zimInstance.kickGroupMembers(ids, groupID);
 }
 
 export async function joinGroupZim({ groupID }) {
@@ -268,4 +266,70 @@ export async function joinGroupZim({ groupID }) {
 export async function queryGroupMembersZim({ groupID, count = 50 }) {
   if (!zimInstance) await createZim();
   return zimInstance.queryGroupMemberList(groupID, { count, nextFlag: 0 });
+}
+
+export async function leaveGroupZim({ groupID }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  if (!cleanGroupID) throw new Error("leaveGroupZim: groupID is required");
+  return zimInstance.leaveGroup(cleanGroupID);
+}
+
+export async function queryGroupInfoZim({ groupID }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  if (!cleanGroupID) throw new Error("queryGroupInfoZim: groupID is required");
+  return zimInstance.queryGroupInfo(cleanGroupID);
+}
+
+export async function updateGroupNameZim({ groupID, groupName }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  const cleanGroupName = String(groupName ?? "").trim();
+  if (!cleanGroupID) throw new Error("updateGroupNameZim: groupID is required");
+  if (!cleanGroupName) throw new Error("updateGroupNameZim: groupName is required");
+  return zimInstance.updateGroupName(cleanGroupName, cleanGroupID);
+}
+
+export async function updateGroupNoticeZim({ groupID, groupNotice }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  const cleanGroupNotice = String(groupNotice ?? "").trim();
+  if (!cleanGroupID) throw new Error("updateGroupNoticeZim: groupID is required");
+  return zimInstance.updateGroupNotice(cleanGroupNotice, cleanGroupID);
+}
+
+export async function updateGroupAvatarUrlZim({ groupID, groupAvatarUrl }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  const cleanGroupAvatarUrl = String(groupAvatarUrl ?? "").trim();
+  if (!cleanGroupID) throw new Error("updateGroupAvatarUrlZim: groupID is required");
+  return zimInstance.updateGroupAvatarUrl(cleanGroupAvatarUrl, cleanGroupID);
+}
+
+export async function transferGroupOwnerZim({ groupID, toUserID }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  const cleanUserID = String(toUserID ?? "").trim();
+  if (!cleanGroupID) throw new Error("transferGroupOwnerZim: groupID is required");
+  if (!cleanUserID) throw new Error("transferGroupOwnerZim: toUserID is required");
+  return zimInstance.transferGroupOwner(cleanUserID, cleanGroupID);
+}
+
+export async function dismissGroupZim({ groupID }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  if (!cleanGroupID) throw new Error("dismissGroupZim: groupID is required");
+  return zimInstance.dismissGroup(cleanGroupID);
+}
+
+export async function setGroupMemberRoleZim({ groupID, userID, role }) {
+  if (!zimInstance) await createZim();
+  const cleanGroupID = String(groupID ?? "").trim();
+  const cleanUserID = String(userID ?? "").trim();
+  const nextRole = Number(role);
+  if (!cleanGroupID) throw new Error("setGroupMemberRoleZim: groupID is required");
+  if (!cleanUserID) throw new Error("setGroupMemberRoleZim: userID is required");
+  if (!nextRole) throw new Error("setGroupMemberRoleZim: role is required");
+  return zimInstance.setGroupMemberRole(nextRole, cleanUserID, cleanGroupID);
 }
