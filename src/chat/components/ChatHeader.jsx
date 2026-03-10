@@ -7,41 +7,55 @@ export default function ChatHeader({
   photo,
   typingLabel,
   onToggleSidebar,
+  onToggleInfoPanel,
 }) {
   return (
-    <header className="px-4 sm:px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur flex items-center gap-3 sm:gap-4">
+    <header className="flex items-center gap-3 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-3 py-3 backdrop-blur sm:gap-4 sm:px-6 sm:py-4">
       <button
         type="button"
-        className="xl:hidden h-10 w-10 inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/5 transition hover:bg-white/10 lg:hidden"
         onClick={onToggleSidebar}
         aria-label="Toggle sidebar"
       >
-        <span className="block w-5 border-b border-white mb-1" />
-        <span className="block w-5 border-b border-white mb-1" />
+        <span className="mb-1 block w-5 border-b border-white" />
+        <span className="mb-1 block w-5 border-b border-white" />
         <span className="block w-5 border-b border-white" />
       </button>
       {photo ? (
         <img
           src={photo}
           alt={title ?? "chat"}
-          className="h-11 w-11 sm:h-12 sm:w-12 rounded-full object-cover border border-white/10"
+          className="h-11 w-11 rounded-2xl border border-white/10 object-cover sm:h-12 sm:w-12"
         />
       ) : (
-        <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg font-semibold">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-sky-400 to-indigo-500 text-lg font-semibold text-slate-950 sm:h-12 sm:w-12">
           {title?.[0]?.toUpperCase() ?? "C"}
         </div>
       )}
-      <div className="min-w-0">
-        <div className="font-semibold text-base sm:text-lg truncate">{title ?? "Select a chat"}</div>
-        <div className="text-sm text-purple-200 truncate">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold sm:text-lg">
+          {title ?? "Select a chat"}
+        </div>
+        <div className="truncate text-[11px] uppercase tracking-[0.18em] text-cyan-100/65">
+          Live conversation
+        </div>
+        <div className="truncate text-sm text-purple-200">
           {typingLabel || subtitle || ""}
         </div>
       </div>
       <button
-        onClick={onLogout}
-        className="ml-auto px-3 sm:px-4 py-2 rounded-xl border border-white/20 hover:bg-white/10 transition text-sm sm:text-base"
+        type="button"
+        onClick={onToggleInfoPanel}
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/5 text-sm font-semibold transition hover:bg-white/10 2xl:hidden"
+        aria-label="Open chat info"
       >
-        Logout
+        i
+      </button>
+      <button
+        onClick={onLogout}
+        className="ml-auto shrink-0 rounded-xl border border-white/20 bg-white/[0.04] px-3 py-2 text-xs transition hover:bg-white/10 sm:px-4 sm:text-sm"
+      >
+        Log out
       </button>
     </header>
   );

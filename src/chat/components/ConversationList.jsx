@@ -1,38 +1,87 @@
 import React from "react";
+import { getMessagePreview } from "../messageMetadata";
 
-export default function ConversationList({ conversations = [], active, onSelect, typingStatus }) {
+export default function ConversationList({
+  conversations = [],
+  active,
+  onSelect,
+  typingStatus,
+  presenceByUserID = {},
+}) {
   return (
-    <div className="h-full overflow-y-auto space-y-2 pr-1">
-      {conversations.map((c) => {
-        const isActive = active && active.id === c.id && active.type === c.type;
+    <div className="h-full space-y-2 overflow-y-auto pr-1">
+      {conversations.map((conversation) => {
+        const isActive =
+          active &&
+          active.id === conversation.id &&
+          active.type === conversation.type;
         const isTyping =
           typingStatus &&
-          typingStatus.id === c.id &&
-          typingStatus.type === c.type &&
-          c.type === 0; // only for peer chats
+          typingStatus.id === conversation.id &&
+          typingStatus.type === conversation.type &&
+          conversation.type === 0;
+
+        const typeLabel =
+          conversation.type === 2
+            ? "Group"
+            : conversation.type === 1
+              ? "Room"
+              : "Direct";
+
+        const preview = isTyping
+          ? "typing..."
+          : getMessagePreview(conversation.lastMessage) ||
+            conversation.subtitle ||
+            "No messages yet";
+        const presence =
+          conversation.type === 0 ? presenceByUserID[conversation.id] : null;
+        const presenceDotClass =
+          presence?.presence === "online"
+            ? "bg-emerald-400"
+            : presence?.presence === "recent"
+              ? "bg-cyan-300"
+              : "bg-white/25";
+
         return (
           <button
-            key={`${c.type}-${c.id}`}
-            onClick={() => onSelect?.(c)}
-            className={`w-full text-left rounded-2xl px-4 py-3 border transition transform hover:translate-x-1 ${
+            key={`${conversation.type}-${conversation.id}`}
+            onClick={() => onSelect?.(conversation)}
+            className={`w-full rounded-[1.35rem] border px-4 py-3 text-left transition duration-200 ${
               isActive
-                ? "bg-white/15 border-white/30 shadow-lg shadow-purple-900/40"
-                : "bg-white/5 border-white/10 hover:border-white/30"
+                ? "border-cyan-300/40 bg-white/14 shadow-lg shadow-cyan-950/30"
+                : "border-white/10 bg-white/[0.045] hover:-translate-y-[1px] hover:border-white/25 hover:bg-white/[0.075]"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-sm font-semibold text-white">
-                {c.title?.[0]?.toUpperCase() ?? "C"}
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-sky-400 to-indigo-500 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-950/30">
+                {conversation.title?.[0]?.toUpperCase() ?? "C"}
+                {conversation.type === 0 && (
+                  <span
+                    className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-[#101735] ${presenceDotClass}`}
+                    title={presence?.presence || "unknown"}
+                  />
+                )}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold truncate">{c.title}</div>
-                <div className="text-xs text-purple-200 truncate">
-                  {isTyping ? "typing..." : c.lastMessage?.message ?? c.subtitle ?? ""}
+                <div className="flex items-center gap-2">
+                  <div className="truncate font-semibold text-white">
+                    {conversation.title}
+                  </div>
+                  <span className="shrink-0 rounded-full border border-white/10 bg-black/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">
+                    {typeLabel}
+                  </span>
+                </div>
+                <div
+                  className={`truncate text-xs ${
+                    isTyping ? "text-cyan-200" : "text-purple-200"
+                  }`}
+                >
+                  {preview}
                 </div>
               </div>
-              {c.unreadCount > 0 && (
-                <span className="ml-auto text-[11px] px-2 py-1 rounded-full bg-pink-500 text-white">
-                  {c.unreadCount}
+              {conversation.unreadCount > 0 && (
+                <span className="ml-auto shrink-0 rounded-full bg-cyan-400 px-2.5 py-1 text-[11px] font-semibold text-slate-950 shadow-md shadow-cyan-950/30">
+                  {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
                 </span>
               )}
             </div>
@@ -40,7 +89,9 @@ export default function ConversationList({ conversations = [], active, onSelect,
         );
       })}
       {conversations.length === 0 && (
-        <div className="text-sm text-purple-200">No conversations yet.</div>
+        <div className="rounded-[1.35rem] border border-dashed border-white/15 bg-white/[0.04] px-4 py-6 text-center text-sm text-purple-200">
+          Start a direct chat or create a group to see conversations here.
+        </div>
       )}
     </div>
   );

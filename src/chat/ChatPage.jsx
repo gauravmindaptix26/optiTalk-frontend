@@ -25,12 +25,13 @@ import Sidebar from "./components/Sidebar";
 import ChatHeader from "./components/ChatHeader";
 import MessageList from "./components/MessageList";
 import MessageComposer from "./components/MessageComposer";
+import IncomingToastStack from "./components/IncomingToastStack";
 import { loadCachedMessages, saveCachedMessages } from "./storage/chatCache";
 import { useProfile } from "../profile/useProfile";
 import ProfilePanel from "../profile/ProfilePanel";
 import { getZimSdk } from "./zego/zimSdk";
 import { getApiBase } from "./helpers/apiBase";
-import { mergeMessageMetadata } from "./messageMetadata";
+import { getMessagePreview, mergeMessageMetadata } from "./messageMetadata";
 
 const LAST_CONV_KEY = "zego:lastConversation";
 const GROUP_ADMIN_KEY = "zego:groupAdmins";
@@ -45,6 +46,10 @@ const toZegoUserID = (raw) =>
     .slice(0, 32);
 
 const convKey = (type, id) => `${type}:${id}`;
+const messageIdentity = (message) =>
+  message?.messageID ??
+  message?.localMessageID ??
+  `${message?.timestamp ?? "0"}:${message?.message ?? ""}`;
 
 const mergeUniqueMessages = (previous, incoming) => {
   const next = [...(previous ?? [])];
@@ -94,11 +99,88 @@ export default function ChatPage() {
   const [groupInviteInput, setGroupInviteInput] = useState("");
   const [groupRemoveInput, setGroupRemoveInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [presenceByUserID, setPresenceByUserID] = useState({});
+  const visibilityRef = useRef(
+    typeof document !== "undefined" ? document.visibilityState : "visible",
+  );
+  const notificationPermissionRequestedRef = useRef(false);
+  const browserNotificationTimestampsRef = useRef(new Map());
+  const lastNotifiedMessageRef = useRef(new Map());
+  const browserNotificationsRef = useRef(new Map());
 
   useEffect(() => {
     activeRef.current = active;
     setTypingStatus(null);
   }, [active]);
+
+  const conversationsRef = useRef([]);
+  const toastTimersRef = useRef(new Map());
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
+    const users = [...(searchResults || []), ...(groupSearchResults || [])];
+    if (!users.length) return;
+
+    setPresenceByUserID((prev) => {
+      const next = { ...prev };
+      for (const user of users) {
+        const id = toZegoUserID(user?.userID || user?.userId || user?.email || "");
+        if (!id) continue;
+        next[id] = {
+          presence: user?.presence || "unknown",
+          lastSeen: user?.lastSeen || 0,
+          name: user?.name || user?.email || id,
+        };
+      }
+      return next;
+    });
+  }, [groupSearchResults, searchResults]);
+
+  useEffect(() => () => {
+    for (const timer of toastTimersRef.current.values()) {
+      clearTimeout(timer);
+    }
+    toastTimersRef.current.clear();
+
+    for (const notification of browserNotificationsRef.current.values()) {
+      notification.close();
+    }
+    browserNotificationsRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const handleVisibilityChange = () => {
+      visibilityRef.current = document.visibilityState;
+    };
+
+    handleVisibilityChange();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof Notification === "undefined" ||
+      !isAuthenticated ||
+      notificationPermissionRequestedRef.current ||
+      Notification.permission !== "default"
+    ) {
+      return;
+    }
+
+    notificationPermissionRequestedRef.current = true;
+    Notification.requestPermission().catch(() => {});
+  }, [isAuthenticated]);
 
   useEffect(() => {
     try {
@@ -237,6 +319,13 @@ export default function ChatPage() {
   };
 
   const setActiveConversation = async (conversation) => {
+    dismissToast(convKey(conversation.type, conversation.id));
+    if (conversation?.lastMessage) {
+      lastNotifiedMessageRef.current.set(
+        convKey(conversation.type, conversation.id),
+        messageIdentity(conversation.lastMessage),
+      );
+    }
     setActive(conversation);
     try {
       localStorage.setItem(
@@ -279,6 +368,112 @@ export default function ChatPage() {
     });
   };
 
+  const dismissToast = (toastId) => {
+    const timer = toastTimersRef.current.get(toastId);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimersRef.current.delete(toastId);
+    }
+
+    setToasts((prev) => prev.filter((toast) => toast.id !== toastId));
+
+    const activeNotification = browserNotificationsRef.current.get(toastId);
+    if (activeNotification) {
+      activeNotification.close();
+      browserNotificationsRef.current.delete(toastId);
+    }
+  };
+
+  const queueIncomingToast = ({ conversation, message }) => {
+    if (!conversation || !message) return;
+
+    const toastId = convKey(conversation.type, conversation.id);
+    const currentMessageIdentity = messageIdentity(message);
+    if (lastNotifiedMessageRef.current.get(toastId) === currentMessageIdentity) {
+      return;
+    }
+    lastNotifiedMessageRef.current.set(toastId, currentMessageIdentity);
+
+    const nextToast = {
+      id: toastId,
+      conversation,
+      title: conversation.title || conversation.id,
+      preview: getMessagePreview(message) || "New message",
+    };
+
+    const currentTimer = toastTimersRef.current.get(toastId);
+    if (currentTimer) clearTimeout(currentTimer);
+
+    setToasts((prev) => [nextToast, ...prev.filter((toast) => toast.id !== toastId)].slice(0, 3));
+
+    const timeout = setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== toastId));
+      toastTimersRef.current.delete(toastId);
+    }, 4800);
+
+    toastTimersRef.current.set(toastId, timeout);
+  };
+
+  const openConversationFromToast = async (toast) => {
+    dismissToast(toast.id);
+    setSidebarOpen(false);
+    setInfoPanelOpen(false);
+    hydrateFromCache(toast.conversation);
+    await setActiveConversation(toast.conversation);
+  };
+
+  const notifyDesktopMessage = ({ conversation, message }) => {
+    if (
+      typeof window === "undefined" ||
+      typeof Notification === "undefined" ||
+      Notification.permission !== "granted" ||
+      !conversation ||
+      !message
+    ) {
+      return;
+    }
+
+    const isDocumentVisible =
+      visibilityRef.current === "visible" && document.hasFocus?.();
+    if (isDocumentVisible) return;
+
+    const notificationKey = convKey(conversation.type, conversation.id);
+    const lastShownAt =
+      browserNotificationTimestampsRef.current.get(notificationKey) ?? 0;
+    if (Date.now() - lastShownAt < 3500) return;
+    browserNotificationTimestampsRef.current.set(notificationKey, Date.now());
+
+    const previousNotification = browserNotificationsRef.current.get(notificationKey);
+    if (previousNotification) {
+      previousNotification.close();
+      browserNotificationsRef.current.delete(notificationKey);
+    }
+
+    const notification = new Notification(conversation.title || "New message", {
+      body: getMessagePreview(message) || "You have a new message",
+      tag: notificationKey,
+      renotify: true,
+    });
+    browserNotificationsRef.current.set(notificationKey, notification);
+
+    notification.onclick = () => {
+      window.focus();
+      openConversationFromToast({
+        id: notificationKey,
+        conversation,
+      }).catch(() => {});
+      notification.close();
+    };
+
+    notification.onclose = () => {
+      if (browserNotificationsRef.current.get(notificationKey) === notification) {
+        browserNotificationsRef.current.delete(notificationKey);
+      }
+    };
+
+    setTimeout(() => notification.close(), 5000);
+  };
+
   const handleIncoming = (type, fromConversationID, list) => {
     const key = convKey(type, fromConversationID);
     const isActive =
@@ -316,8 +511,47 @@ export default function ChatPage() {
       [key]: mergeUniqueMessages(prev[key], list),
     }));
 
+    const lastMessage = list?.[list.length - 1] ?? null;
+    const existingConversation = conversationsRef.current.find(
+      (conversation) =>
+        conversation.id === fromConversationID && conversation.type === type,
+    );
+    const inferredConversation =
+      existingConversation ||
+      {
+        id: fromConversationID,
+        type,
+        title:
+          type === ZIMConversationType.Room
+            ? fromConversationID === appRoomID
+              ? "Community"
+              : fromConversationID
+            : fromConversationID,
+        subtitle: "",
+        unreadCount: 0,
+        lastMessage,
+      };
+
+    if (!isActive && lastMessage) {
+      const notificationConversation = {
+        ...inferredConversation,
+        lastMessage: lastMessage ?? inferredConversation.lastMessage,
+      };
+
+      queueIncomingToast({
+        conversation: notificationConversation,
+        message: lastMessage,
+      });
+      notifyDesktopMessage({
+        conversation: notificationConversation,
+        message: lastMessage,
+      });
+    } else if (isActive && lastMessage) {
+      lastNotifiedMessageRef.current.set(key, messageIdentity(lastMessage));
+      dismissToast(key);
+    }
+
     setConversations((prev) => {
-      const lastMessage = list?.[list.length - 1] ?? null;
       let found = false;
 
       const updated = prev.map((c) => {
@@ -1117,6 +1351,13 @@ export default function ChatPage() {
     setTypingStatus(null);
     setReplyTo(null);
     setCachedIdToken(null);
+    setToasts([]);
+    lastNotifiedMessageRef.current.clear();
+    browserNotificationTimestampsRef.current.clear();
+    for (const notification of browserNotificationsRef.current.values()) {
+      notification.close();
+    }
+    browserNotificationsRef.current.clear();
     console.log("[Chat] Cleared React state");
     
     // 4. Logout from Auth0
@@ -1140,11 +1381,13 @@ export default function ChatPage() {
     <>
       <ChatLayout
         sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         onCloseSidebar={() => setSidebarOpen(false)}
+        infoPanelOpen={infoPanelOpen}
+        onCloseInfoPanel={() => setInfoPanelOpen(false)}
         sidebar={
           <Sidebar
             profile={profile}
+            onCloseSidebar={() => setSidebarOpen(false)}
             onEditProfile={() => setShowProfile(true)}
             conversations={conversations}
             active={active}
@@ -1161,6 +1404,7 @@ export default function ChatPage() {
           groupSearchError={groupSearchError}
           isConnected={isConnected}
           typingStatus={typingStatus}
+          presenceByUserID={presenceByUserID}
           onSearch={handleUserSearch}
           searchResults={searchResults}
           searchLoading={searchLoading}
@@ -1181,7 +1425,14 @@ export default function ChatPage() {
             }
             photo={undefined}
             onLogout={onLogout}
-            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+            onToggleSidebar={() => {
+              setInfoPanelOpen(false);
+              setSidebarOpen((prev) => !prev);
+            }}
+            onToggleInfoPanel={() => {
+              setSidebarOpen(false);
+              setInfoPanelOpen((prev) => !prev);
+            }}
           />
         }
         messageList={
@@ -1196,8 +1447,18 @@ export default function ChatPage() {
               </div>
             </div>
           ) : !active ? (
-            <div className="flex h-full items-center justify-center text-purple-200">
-              Choose a chat from the left.
+            <div className="flex h-full items-center justify-center px-6">
+              <div className="max-w-md rounded-[1.9rem] border border-dashed border-white/15 bg-white/[0.05] px-6 py-8 text-center">
+                <div className="text-[11px] uppercase tracking-[0.26em] text-cyan-100/65">
+                  No chat selected
+                </div>
+                <div className="mt-3 text-xl font-semibold text-white">
+                  Pick a conversation or start a fresh one.
+                </div>
+                <div className="mt-3 text-sm text-purple-200">
+                  Search for a teammate, create a group, or open the sidebar from the hamburger menu on mobile.
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -1307,6 +1568,13 @@ export default function ChatPage() {
             </div>
           </div>
         }
+      />
+      <IncomingToastStack
+        toasts={toasts}
+        onOpen={(toast) => {
+          openConversationFromToast(toast).catch(() => {});
+        }}
+        onDismiss={dismissToast}
       />
       {showProfile && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">

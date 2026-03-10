@@ -66,27 +66,39 @@ export default function MessageBubble({
             onOpenPopover?.(e.currentTarget);
           }
         }}
-        className={`group relative w-fit max-w-[88%] rounded-2xl px-4 py-3 transition hover:-translate-y-[1px] sm:max-w-[75%] ${
+        className={`group relative w-fit max-w-[88%] rounded-[1.45rem] px-4 py-3 shadow-lg backdrop-blur-sm transition hover:-translate-y-[1px] sm:max-w-[75%] ${
           isSelf
-            ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-            : "border border-white/10 bg-white/10 text-white"
+            ? "bg-[linear-gradient(135deg,#34d399_0%,#22d3ee_18%,#2563eb_100%)] text-slate-950 shadow-cyan-950/25"
+            : "border border-white/10 bg-white/[0.09] text-white shadow-slate-950/25"
         }`}
         {...longPressHandlers}
       >
         {!isSelf && (
-          <div className="mb-1 break-all text-xs text-purple-200">
+          <div className="mb-2 inline-flex max-w-full rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.15em] text-cyan-100/70">
             {msg.senderUserID}
           </div>
         )}
 
         {reply && (
-          <div className="mb-2 border-l-2 border-white/30 pl-2 text-xs text-purple-200">
+          <div
+            className={`mb-2 border-l-2 pl-2 text-xs ${
+              isSelf
+                ? "border-slate-950/20 text-slate-900/75"
+                : "border-white/30 text-purple-200"
+            }`}
+          >
             Replying to: {reply.text ?? ""}
           </div>
         )}
 
         {attachment && !msg.revoked && (
-          <div className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+          <div
+            className={`mb-3 overflow-hidden rounded-2xl border ${
+              isSelf
+                ? "border-slate-950/10 bg-white/30"
+                : "border-white/10 bg-black/10"
+            }`}
+          >
             {attachment.type?.startsWith("image/") ? (
               <img
                 src={attachment.dataUrl}
@@ -106,7 +118,11 @@ export default function MessageBubble({
                 <a
                   href={attachment.dataUrl}
                   download={attachment.name || "attachment"}
-                  className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs hover:bg-white/15"
+                  className={`rounded-xl px-3 py-2 text-xs ${
+                    isSelf
+                      ? "border border-slate-950/10 bg-slate-950/10 hover:bg-slate-950/15"
+                      : "border border-white/10 bg-white/10 hover:bg-white/15"
+                  }`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   Download
@@ -119,7 +135,11 @@ export default function MessageBubble({
         {showText && (
           <div
             className={`break-words whitespace-pre-wrap ${
-              msg.revoked ? "italic text-purple-200" : ""
+              msg.revoked
+                ? "italic text-purple-200"
+                : isSelf
+                  ? "text-slate-950"
+                  : ""
             }`}
           >
             {displayContent}
@@ -128,7 +148,7 @@ export default function MessageBubble({
 
         <div
           className={`mt-1 flex items-center gap-2 text-[11px] ${
-            isSelf ? "text-white/80" : "text-purple-200"
+            isSelf ? "text-slate-950/70" : "text-purple-200"
           }`}
         >
           {formatTime(msg.timestamp)}
@@ -146,9 +166,11 @@ export default function MessageBubble({
               return (
                 <span
                   key={`${msg.messageID ?? msg.localMessageID}-${emoji}`}
-                  className={`flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-1 ${
-                    isMine ? "ring-1 ring-white/60" : ""
-                  }`}
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 ${
+                    isSelf
+                      ? "border border-slate-950/10 bg-white/35"
+                      : "border border-white/20 bg-white/10"
+                  } ${isMine ? "ring-1 ring-cyan-200/70" : ""}`}
                 >
                   <span>{emoji}</span>
                   <span className="text-[10px]">{count}</span>

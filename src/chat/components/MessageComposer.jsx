@@ -45,6 +45,15 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
   }, []);
 
   useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "0px";
+    const nextHeight = Math.min(textarea.scrollHeight, 140);
+    textarea.style.height = `${Math.max(nextHeight, 24)}px`;
+  }, [text]);
+
+  useEffect(() => {
     if (!pickerOpen) return undefined;
 
     const handleClickAway = (event) => {
@@ -135,7 +144,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
   return (
     <form
       onSubmit={submit}
-      className="px-6 pb-5 pt-3 border-t border-white/10 bg-white/5 backdrop-blur"
+      className="border-t border-white/10 bg-white/5 px-3 pb-3 pt-3 backdrop-blur sm:px-6 sm:pb-5"
     >
       {attachment && (
         <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white">
@@ -166,11 +175,11 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
 
       {error && <div className="mb-3 text-sm text-red-200">{error}</div>}
 
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-2 sm:gap-3">
         <div className="relative" ref={pickerRef}>
           <button
             type="button"
-            className="h-11 w-11 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+            className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm transition hover:bg-white/10 sm:h-11 sm:w-11"
             aria-label="Add emoji"
             onClick={() => setPickerOpen((open) => !open)}
           >
@@ -194,7 +203,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
 
         <button
           type="button"
-          className="h-11 w-11 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+          className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm transition hover:bg-white/10 sm:h-11 sm:w-11"
           aria-label="Attach file"
           onClick={() => fileInputRef.current?.click()}
         >
@@ -221,14 +230,14 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
             disabled={disabled}
             rows={1}
             placeholder={disabled ? "Connecting..." : "Type a message or add a file..."}
-            className="w-full resize-none bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+            className="max-h-35 w-full resize-none overflow-y-auto bg-transparent text-white placeholder:text-white/50 focus:outline-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={disabled || (!text.trim() && !attachment)}
-          className="h-11 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 font-semibold text-white shadow-lg shadow-purple-900/30 transition hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50"
+          className="h-10 shrink-0 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/30 transition hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50 sm:h-11 sm:px-4"
         >
           Send
         </button>

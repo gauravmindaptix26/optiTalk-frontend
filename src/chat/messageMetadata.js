@@ -26,3 +26,24 @@ export function mergeMessageMetadata(extendedData, nextMetadata) {
     ...(nextMetadata || {}),
   });
 }
+
+export function getMessagePreview(message) {
+  if (!message) return "";
+
+  const metadata = parseMessageMetadata(message.extendedData);
+  const attachment = metadata.attachment;
+  const text = String(message.message || "").trim();
+
+  if (attachment?.type?.startsWith("image/")) {
+    return text && text !== ATTACHMENT_PLACEHOLDER ? `Photo | ${text}` : "Photo";
+  }
+
+  if (attachment?.name) {
+    return text && text !== ATTACHMENT_PLACEHOLDER
+      ? `Attachment | ${text}`
+      : `Attachment | ${attachment.name}`;
+  }
+
+  if (text === ATTACHMENT_PLACEHOLDER) return "Attachment";
+  return text;
+}
