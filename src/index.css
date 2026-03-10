@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes toastShrink {
   from {
     transform: scaleX(1);

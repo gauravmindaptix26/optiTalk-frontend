@@ -90,8 +90,8 @@ export default function Sidebar({
     (groupSearchResults?.length || 0) === 0;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto pr-1">
-      <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(135deg,rgba(96,165,250,0.22),rgba(168,85,247,0.18),rgba(15,23,42,0.18))] p-4">
+    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
+      <div className="shrink-0 rounded-[1.6rem] border border-white/10 bg-[linear-gradient(135deg,rgba(96,165,250,0.22),rgba(168,85,247,0.18),rgba(15,23,42,0.18))] p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/70">
@@ -145,7 +145,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-3">
+      <div className="shrink-0 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-3">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/65">
             Find People
@@ -232,7 +232,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-3">
+      <div className="shrink-0 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-3">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/65">
             Create Group
@@ -343,7 +343,7 @@ export default function Sidebar({
         </form>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-[1.45rem] border border-white/10 bg-white/[0.035] p-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/65">
             Conversations
@@ -352,13 +352,15 @@ export default function Sidebar({
             {conversations?.length || 0} active
           </div>
         </div>
-        <ConversationList
-          conversations={conversations}
-          active={active}
-          onSelect={onSelect}
-          typingStatus={typingStatus}
-          presenceByUserID={presenceByUserID}
-        />
+        <div className="min-h-0 h-[calc(100%-1.75rem)]">
+          <ConversationList
+            conversations={conversations}
+            active={active}
+            onSelect={onSelect}
+            typingStatus={typingStatus}
+            presenceByUserID={presenceByUserID}
+          />
+        </div>
       </div>
     </div>
   );
