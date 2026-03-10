@@ -90,7 +90,7 @@ export default function Sidebar({
     (groupSearchResults?.length || 0) === 0;
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-purple-900/30 backdrop-blur-xl">
+    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto pr-1">
       <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(135deg,rgba(96,165,250,0.22),rgba(168,85,247,0.18),rgba(15,23,42,0.18))] p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>

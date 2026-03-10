@@ -34,7 +34,7 @@ export default function ChatLayout({
               sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <div className="flex h-full flex-col gap-4 overflow-y-auto rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-purple-900/30 backdrop-blur-xl">
+            <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-purple-900/30 backdrop-blur-xl">
               {sidebar}
             </div>
           </aside>
