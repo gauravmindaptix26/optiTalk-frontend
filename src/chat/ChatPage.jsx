@@ -2228,7 +2228,7 @@ export default function ChatPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs text-slate-300/82">Group name</div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                           value={groupNameInput}
                           onChange={(e) => setGroupNameInput(e.target.value)}
@@ -2263,7 +2263,7 @@ export default function ChatPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs text-slate-300/82">Avatar URL</div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                           value={groupAvatarInput}
                           onChange={(e) => setGroupAvatarInput(e.target.value)}
@@ -2402,7 +2402,7 @@ export default function ChatPage() {
                       Manage members
                     </div>
                     <div className="text-xs text-slate-300/82">Add members</div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <input
                         value={groupInviteInput}
                         onChange={(e) => setGroupInviteInput(e.target.value)}
@@ -2421,7 +2421,7 @@ export default function ChatPage() {
                       </button>
                     </div>
                     <div className="text-xs text-slate-300/82">Remove members</div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <input
                         value={groupRemoveInput}
                         onChange={(e) => setGroupRemoveInput(e.target.value)}
@@ -2450,7 +2450,7 @@ export default function ChatPage() {
                     <div className="text-xs text-slate-300/82">
                       Transfer ownership before leaving if you want another member to manage the group.
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <input
                         value={groupTransferOwnerInput}
                         onChange={(e) => setGroupTransferOwnerInput(e.target.value)}

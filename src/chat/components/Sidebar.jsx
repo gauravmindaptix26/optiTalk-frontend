@@ -87,7 +87,7 @@ const getPresenceBadge = (presence) => {
 };
 
 const sectionShell =
-  "premium-card rounded-[1.6rem] p-3 sm:p-4 [animation:fadeUp_320ms_ease]";
+  "premium-card rounded-[1.35rem] p-3 sm:rounded-[1.6rem] sm:p-4 [animation:fadeUp_320ms_ease]";
 const inputShell =
   "w-full rounded-[1.15rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-400/90 outline-none transition focus:border-cyan-300/30 focus:bg-black/28 focus:ring-2 focus:ring-cyan-300/20";
 
@@ -131,23 +131,23 @@ export default function Sidebar({
     (groupSearchResults?.length || 0) === 0;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
-      <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.24),rgba(59,130,246,0.12),rgba(12,20,34,0.22))] p-4 shadow-[0_24px_60px_rgba(2,8,23,0.3)]">
+    <div className="flex h-full min-h-0 w-full flex-col gap-3 overflow-hidden sm:gap-4">
+      <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.24),rgba(59,130,246,0.12),rgba(12,20,34,0.22))] p-3.5 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.9rem] sm:p-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(94,234,212,0.1),transparent_28%)]" />
-        <div className="relative mb-4 flex items-start justify-between gap-3">
+        <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/75">
               Team chat
             </div>
-            <div className="font-display mt-2 text-[1.35rem] font-semibold text-white">
+            <div className="font-display mt-2 text-[1.15rem] font-semibold text-white sm:text-[1.35rem]">
               Pulse Workspace
             </div>
-            <div className="mt-1 max-w-[16rem] text-xs leading-5 text-cyan-50/72">
+            <div className="mt-1 max-w-[16rem] text-[11px] leading-5 text-cyan-50/72 sm:text-xs">
               Modern messaging with cleaner threads, search, groups, and presence.
             </div>
           </div>
           <div
-            className={`rounded-full px-3 py-1.5 text-[11px] font-medium shadow-lg ${
+            className={`w-fit rounded-full px-3 py-1.5 text-[11px] font-medium shadow-lg ${
               isConnected
                 ? "bg-emerald-400/16 text-emerald-100 ring-1 ring-emerald-300/15"
                 : "bg-amber-400/16 text-amber-100 ring-1 ring-amber-300/15"
@@ -157,7 +157,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="relative flex items-center gap-3 rounded-[1.4rem] border border-white/10 bg-black/18 p-3 backdrop-blur">
+        <div className="relative flex items-center gap-3 rounded-[1.2rem] border border-white/10 bg-black/18 p-3 backdrop-blur sm:rounded-[1.4rem]">
           <button
             type="button"
             onClick={onCloseSidebar}
@@ -223,7 +223,7 @@ export default function Sidebar({
             }}
           />
         </div>
-        <div className="soft-scrollbar mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+        <div className="soft-scrollbar mt-3 max-h-44 space-y-2 overflow-y-auto pr-1 sm:max-h-56">
           {searchLoading &&
             Array.from({ length: 3 }).map((_, index) => (
               <SearchSkeleton key={`search-skeleton-${index}`} />
@@ -341,7 +341,7 @@ export default function Sidebar({
               }}
             />
           </div>
-          <div className="soft-scrollbar max-h-44 space-y-2 overflow-y-auto pr-1">
+          <div className="soft-scrollbar max-h-32 space-y-2 overflow-y-auto pr-1 sm:max-h-44">
             {groupSearchLoading &&
               Array.from({ length: 2 }).map((_, index) => (
                 <SearchSkeleton key={`group-skeleton-${index}`} />
@@ -411,7 +411,7 @@ export default function Sidebar({
         </form>
       </div>
 
-      <div className="premium-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.7rem] p-3 sm:p-4">
+      <div className="premium-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.45rem] p-3 sm:rounded-[1.7rem] sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
             Conversations

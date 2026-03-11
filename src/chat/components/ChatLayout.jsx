@@ -19,8 +19,8 @@ export default function ChatLayout({
         <div className="absolute bottom-[-8rem] left-[22%] h-96 w-96 rounded-full bg-emerald-400/8 blur-3xl [animation:floatAura_16s_ease-in-out_infinite]" />
       </div>
 
-      <div className="relative mx-auto flex h-[100dvh] min-h-[100dvh] max-w-[1700px] flex-col px-2 py-2 sm:px-4 sm:py-4 xl:px-5">
-        <div className="relative flex h-full min-h-0 flex-1 flex-col gap-2 lg:flex-row lg:gap-4">
+      <div className="relative mx-auto flex h-[100dvh] min-h-[100dvh] max-w-[1700px] flex-col px-1.5 py-1.5 sm:px-4 sm:py-4 xl:px-5">
+        <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1.5 sm:gap-2 lg:flex-row lg:gap-4">
           <div
             className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition lg:hidden ${
               sidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
@@ -36,17 +36,17 @@ export default function ChatLayout({
           />
 
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-sm flex-col gap-3 transform p-2 transition duration-300 lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:transform-none lg:p-0 xl:w-[360px] ${
+            className={`fixed inset-y-0 left-0 z-50 flex w-[92vw] max-w-sm flex-col gap-3 transform p-1.5 transition duration-300 sm:p-2 lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:transform-none lg:p-0 xl:w-[360px] ${
               sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <div className="premium-panel mesh-accent flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-[2rem] p-4">
+            <div className="premium-panel mesh-accent flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-[1.55rem] p-3 sm:gap-4 sm:rounded-[2rem] sm:p-4">
               {sidebar}
             </div>
           </aside>
 
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            <div className="premium-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem]">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:gap-3">
+            <div className="premium-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.55rem] sm:rounded-[2rem]">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(94,234,212,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(96,165,250,0.08),transparent_26%)]" />
               <div className="grid h-full min-h-0 grid-rows-[auto_1fr_auto]">
                 {chatHeader}
@@ -59,7 +59,7 @@ export default function ChatLayout({
           <aside className="hidden w-[320px] 2xl:flex">{rightPanel ?? null}</aside>
 
           <aside
-            className={`premium-panel fixed inset-x-2 bottom-2 z-50 flex max-h-[76dvh] flex-col overflow-hidden rounded-[1.9rem] transition duration-300 2xl:hidden ${
+            className={`premium-panel fixed inset-x-1.5 bottom-1.5 z-50 flex max-h-[82dvh] flex-col overflow-hidden rounded-[1.55rem] transition duration-300 sm:inset-x-2 sm:bottom-2 sm:max-h-[76dvh] sm:rounded-[1.9rem] 2xl:hidden ${
               infoPanelOpen
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-[110%] opacity-0"

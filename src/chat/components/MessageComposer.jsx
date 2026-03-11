@@ -15,7 +15,7 @@ const EMOJIS = [
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 const iconButtonClass =
-  "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] text-slate-100 transition hover:-translate-y-[1px] hover:bg-white/[0.09]";
+  "inline-flex h-10 w-10 items-center justify-center rounded-[1.05rem] border border-white/10 bg-white/[0.045] text-slate-100 transition hover:-translate-y-[1px] hover:bg-white/[0.09] sm:h-11 sm:w-11 sm:rounded-2xl";
 
 const SmileIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5" aria-hidden="true">
@@ -204,7 +204,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
   return (
     <form
       onSubmit={submit}
-      className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(8,15,28,0.18),rgba(8,15,28,0.38))] px-3 pb-3 pt-3 backdrop-blur sm:px-6 sm:pb-5"
+      className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(8,15,28,0.18),rgba(8,15,28,0.38))] px-2.5 pb-2.5 pt-2.5 backdrop-blur sm:px-6 sm:pb-5 sm:pt-3"
     >
       {attachment && (
         <div className="premium-card mb-3 rounded-[1.4rem] px-4 py-3 text-sm text-white">
@@ -239,7 +239,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
         </div>
       )}
 
-      <div className="premium-card flex items-end gap-2 rounded-[1.75rem] px-3 py-3 sm:gap-3 sm:px-4">
+      <div className="premium-card flex items-end gap-2 rounded-[1.35rem] px-2.5 py-2.5 sm:gap-3 sm:rounded-[1.75rem] sm:px-4 sm:py-3">
         <div className="relative" ref={pickerRef}>
           <button
             type="button"
@@ -250,7 +250,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
             <SmileIcon />
           </button>
           {pickerOpen && (
-            <div className="premium-panel absolute bottom-14 left-0 z-20 grid grid-cols-4 gap-2 rounded-[1.4rem] p-3 shadow-2xl">
+            <div className="premium-panel absolute bottom-12 left-0 z-20 grid grid-cols-4 gap-2 rounded-[1.2rem] p-2.5 shadow-2xl sm:bottom-14 sm:rounded-[1.4rem] sm:p-3">
               {EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
@@ -281,7 +281,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
           onChange={handleAttachmentSelect}
         />
 
-        <div className="flex min-h-[3.25rem] flex-1 items-end rounded-[1.4rem] border border-white/10 bg-black/18 px-4 py-3">
+        <div className="flex min-h-[3rem] flex-1 items-end rounded-[1.15rem] border border-white/10 bg-black/18 px-3 py-2.5 sm:min-h-[3.25rem] sm:rounded-[1.4rem] sm:px-4 sm:py-3">
           <textarea
             ref={textareaRef}
             value={text}
@@ -294,14 +294,14 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
             disabled={disabled}
             rows={1}
             placeholder={disabled ? "Connecting..." : "Type a message or add a file..."}
-            className="soft-scrollbar max-h-36 w-full resize-none overflow-y-auto bg-transparent text-[0.95rem] leading-7 text-white placeholder:text-slate-400/90 outline-none"
+            className="soft-scrollbar max-h-32 w-full resize-none overflow-y-auto bg-transparent text-[0.92rem] leading-6 text-white placeholder:text-slate-400/90 outline-none sm:max-h-36 sm:text-[0.95rem] sm:leading-7"
           />
         </div>
 
         <button
           type="submit"
           disabled={disabled || (!text.trim() && !attachment)}
-          className="inline-flex h-12 shrink-0 items-center gap-2 rounded-[1.2rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_42%,#2563eb_100%)] px-4 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_22px_40px_rgba(14,165,233,0.28)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[1.05rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_42%,#2563eb_100%)] px-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_22px_40px_rgba(14,165,233,0.28)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:rounded-[1.2rem] sm:px-4"
         >
           <SendIcon />
           <span className="hidden sm:inline">Send</span>
