@@ -131,23 +131,23 @@ export default function Sidebar({
     (groupSearchResults?.length || 0) === 0;
 
   return (
-    <div className="flex min-h-full w-full flex-col gap-3 sm:gap-4 lg:h-auto lg:min-h-full">
-      <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.24),rgba(59,130,246,0.12),rgba(12,20,34,0.22))] p-3.5 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.9rem] sm:p-4">
+    <div className="flex h-full min-h-0 w-full flex-col gap-3 sm:gap-4">
+      <div className="relative shrink-0 overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.22),rgba(59,130,246,0.12),rgba(12,20,34,0.2))] p-3.5 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.9rem] sm:p-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(94,234,212,0.1),transparent_28%)]" />
-        <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="relative mb-3 flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/75">
               Team chat
             </div>
-            <div className="font-display mt-2 text-[1.15rem] font-semibold text-white sm:text-[1.35rem]">
+            <div className="font-display mt-2 text-[1.05rem] font-semibold text-white sm:text-[1.22rem]">
               Pulse Workspace
             </div>
-            <div className="mt-1 max-w-[16rem] text-[11px] leading-5 text-cyan-50/72 sm:text-xs">
+            <div className="mt-1 max-w-[14rem] text-[11px] leading-5 text-cyan-50/72">
               Modern messaging with cleaner threads, search, groups, and presence.
             </div>
           </div>
           <div
-            className={`w-fit rounded-full px-3 py-1.5 text-[11px] font-medium shadow-lg ${
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium shadow-lg ${
               isConnected
                 ? "bg-emerald-400/16 text-emerald-100 ring-1 ring-emerald-300/15"
                 : "bg-amber-400/16 text-amber-100 ring-1 ring-amber-300/15"
@@ -197,67 +197,186 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className={sectionShell}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
-            <span className="rounded-full bg-cyan-400/12 p-1 text-cyan-100">
+      <div className="stealth-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:space-y-4">
+        <div className={sectionShell}>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
+              <span className="rounded-full bg-cyan-400/12 p-1 text-cyan-100">
+                <SearchIcon />
+              </span>
+              Find people
+            </div>
+            <div className="text-[11px] text-slate-300/80">
+              {searchLoading ? "Searching" : `${searchResults?.length || 0} results`}
+            </div>
+          </div>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
               <SearchIcon />
             </span>
-            Find people
+            <input
+              placeholder="Search users by name or email"
+              value={searchValue}
+              className={`${inputShell} pl-11`}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                onSearch?.(e.target.value);
+              }}
+            />
           </div>
-          <div className="text-[11px] text-slate-300/80">
-            {searchLoading ? "Searching" : `${searchResults?.length || 0} results`}
-          </div>
-        </div>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-            <SearchIcon />
-          </span>
-          <input
-            placeholder="Search users by name or email"
-            value={searchValue}
-            className={`${inputShell} pl-11`}
-            onChange={(e) => {
-              setSearchValue(e.target.value);
-              onSearch?.(e.target.value);
-            }}
-          />
-        </div>
-        <div className="soft-scrollbar mt-3 max-h-44 space-y-2 overflow-y-auto pr-1 sm:max-h-56">
-          {searchLoading &&
-            Array.from({ length: 3 }).map((_, index) => (
-              <SearchSkeleton key={`search-skeleton-${index}`} />
-            ))}
-          {searchError && (
-            <div className="rounded-[1.2rem] border border-red-400/20 bg-red-500/10 px-3 py-3 text-xs text-red-200">
-              {searchError}
-            </div>
-          )}
-          {!searchLoading &&
-            !searchError &&
-            (searchResults || []).map((result) => {
-              const presenceBadge = getPresenceBadge(result.presence);
+          <div className="soft-scrollbar mt-3 max-h-44 space-y-2 overflow-y-auto pr-1 sm:max-h-56">
+            {searchLoading &&
+              Array.from({ length: 3 }).map((_, index) => (
+                <SearchSkeleton key={`search-skeleton-${index}`} />
+              ))}
+            {searchError && (
+              <div className="rounded-[1.2rem] border border-red-400/20 bg-red-500/10 px-3 py-3 text-xs text-red-200">
+                {searchError}
+              </div>
+            )}
+            {!searchLoading &&
+              !searchError &&
+              (searchResults || []).map((result) => {
+                const presenceBadge = getPresenceBadge(result.presence);
 
-              return (
-                <button
-                  key={result.userID || result.userId || result.email || result.name}
-                  className="premium-card w-full rounded-[1.3rem] px-3 py-3 text-left text-sm text-white transition hover:-translate-y-[1px] hover:border-cyan-300/20 hover:bg-white/[0.08]"
-                  onClick={() =>
-                    onStartNewChat?.(
-                      result.userID || result.userId || result.email || result.name,
-                    )
-                  }
-                  type="button"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-indigo-500 text-xs font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
-                      {(result.name || result.email || result.userId || "U")
-                        ?.charAt(0)
-                        ?.toUpperCase() || "U"}
+                return (
+                  <button
+                    key={result.userID || result.userId || result.email || result.name}
+                    className="premium-card w-full rounded-[1.3rem] px-3 py-3 text-left text-sm text-white transition hover:-translate-y-[1px] hover:border-cyan-300/20 hover:bg-white/[0.08]"
+                    onClick={() =>
+                      onStartNewChat?.(
+                        result.userID || result.userId || result.email || result.name,
+                      )
+                    }
+                    type="button"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-indigo-500 text-xs font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
+                        {(result.name || result.email || result.userId || "U")
+                          ?.charAt(0)
+                          ?.toUpperCase() || "U"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="truncate font-semibold">
+                            {result.name || result.email || result.userId}
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${presenceBadge.className}`}
+                          >
+                            {presenceBadge.label}
+                          </span>
+                        </div>
+                        <div className="mt-1 truncate text-xs text-slate-300/78">
+                          {result.email}
+                        </div>
+                        <div className="mt-1 truncate text-[11px] text-cyan-100/68">
+                          {result.presence === "online"
+                            ? "Available now"
+                            : formatLastSeen(result.lastSeen)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="truncate font-semibold">
+                  </button>
+                );
+              })}
+            {!searchLoading && !searchError && !searchValue.trim() && (
+              <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
+                Search by email or name to start a direct conversation.
+              </div>
+            )}
+            {showSearchEmpty && (
+              <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
+                No matching users found. Ask them to log in once so they appear in search.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={sectionShell}>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
+              <span className="rounded-full bg-cyan-400/12 p-1 text-cyan-100">
+                <GroupIcon />
+              </span>
+              Create group
+            </div>
+            <div className="text-[11px] text-slate-300/80">
+              {groupSearchLoading ? "Looking up" : "Direct + group"}
+            </div>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = e.target.elements.groupName?.value?.trim();
+              const membersRaw = groupMembersValue || "";
+              const members = membersRaw
+                .split(",")
+                .map((member) => member.trim())
+                .filter(Boolean);
+              if (name) onCreateGroup?.({ name, members });
+              e.target.reset();
+              setGroupMembersValue("");
+            }}
+            className="space-y-3"
+          >
+            <input
+              name="groupName"
+              placeholder="Group name"
+              className={inputShell}
+              disabled={!isConnected}
+            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <BoltIcon />
+              </span>
+              <input
+                name="groupMembers"
+                placeholder="Members (emails/userIDs, comma separated)"
+                value={groupMembersValue}
+                className={`${inputShell} pl-11`}
+                disabled={!isConnected}
+                onChange={(e) => {
+                  setGroupMembersValue(e.target.value);
+                  onGroupSearch?.(e.target.value);
+                }}
+              />
+            </div>
+            <div className="soft-scrollbar max-h-32 space-y-2 overflow-y-auto pr-1 sm:max-h-44">
+              {groupSearchLoading &&
+                Array.from({ length: 2 }).map((_, index) => (
+                  <SearchSkeleton key={`group-skeleton-${index}`} />
+                ))}
+              {groupSearchError && (
+                <div className="rounded-[1.2rem] border border-red-400/20 bg-red-500/10 px-3 py-3 text-xs text-red-200">
+                  {groupSearchError}
+                </div>
+              )}
+              {!groupSearchLoading &&
+                !groupSearchError &&
+                (groupSearchResults || []).map((result) => {
+                  const presenceBadge = getPresenceBadge(result.presence);
+
+                  return (
+                    <button
+                      key={result.userID || result.userId || result.email || result.name}
+                      type="button"
+                      className="premium-card w-full rounded-[1.2rem] px-3 py-3 text-left text-xs text-white transition hover:border-cyan-300/20 hover:bg-white/[0.08]"
+                      onClick={() => {
+                        const value =
+                          result.userID ||
+                          result.userId ||
+                          result.email ||
+                          result.name;
+                        if (!value) return;
+
+                        setGroupMembersValue((current) =>
+                          current ? `${current}, ${value}` : value,
+                        );
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="truncate text-sm font-semibold">
                           {result.name || result.email || result.userId}
                         </div>
                         <span
@@ -266,168 +385,51 @@ export default function Sidebar({
                           {presenceBadge.label}
                         </span>
                       </div>
-                      <div className="mt-1 truncate text-xs text-slate-300/78">
+                      <div className="mt-1 truncate text-[11px] text-slate-300/75">
                         {result.email}
                       </div>
-                      <div className="mt-1 truncate text-[11px] text-cyan-100/68">
-                        {result.presence === "online"
-                          ? "Available now"
-                          : formatLastSeen(result.lastSeen)}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          {!searchLoading && !searchError && !searchValue.trim() && (
-            <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
-              Search by email or name to start a direct conversation.
+                    </button>
+                  );
+                })}
             </div>
-          )}
-          {showSearchEmpty && (
-            <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
-              No matching users found. Ask them to log in once so they appear in search.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className={sectionShell}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
-            <span className="rounded-full bg-cyan-400/12 p-1 text-cyan-100">
-              <GroupIcon />
-            </span>
-            Create group
-          </div>
-          <div className="text-[11px] text-slate-300/80">
-            {groupSearchLoading ? "Looking up" : "Direct + group"}
-          </div>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const name = e.target.elements.groupName?.value?.trim();
-            const membersRaw = groupMembersValue || "";
-            const members = membersRaw
-              .split(",")
-              .map((member) => member.trim())
-              .filter(Boolean);
-            if (name) onCreateGroup?.({ name, members });
-            e.target.reset();
-            setGroupMembersValue("");
-          }}
-          className="space-y-3"
-        >
-          <input
-            name="groupName"
-            placeholder="Group name"
-            className={inputShell}
-            disabled={!isConnected}
-          />
-          <div className="relative">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <BoltIcon />
-            </span>
-            <input
-              name="groupMembers"
-              placeholder="Members (emails/userIDs, comma separated)"
-              value={groupMembersValue}
-              className={`${inputShell} pl-11`}
-              disabled={!isConnected}
-              onChange={(e) => {
-                setGroupMembersValue(e.target.value);
-                onGroupSearch?.(e.target.value);
-              }}
-            />
-          </div>
-          <div className="soft-scrollbar max-h-32 space-y-2 overflow-y-auto pr-1 sm:max-h-44">
-            {groupSearchLoading &&
-              Array.from({ length: 2 }).map((_, index) => (
-                <SearchSkeleton key={`group-skeleton-${index}`} />
-              ))}
-            {groupSearchError && (
-              <div className="rounded-[1.2rem] border border-red-400/20 bg-red-500/10 px-3 py-3 text-xs text-red-200">
-                {groupSearchError}
+            {!groupSearchLoading && !groupSearchError && !groupMembersValue.trim() && (
+              <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
+                Type member emails or user IDs, or tap search results to fill the field.
               </div>
             )}
-            {!groupSearchLoading &&
-              !groupSearchError &&
-              (groupSearchResults || []).map((result) => {
-                const presenceBadge = getPresenceBadge(result.presence);
-
-                return (
-                  <button
-                    key={result.userID || result.userId || result.email || result.name}
-                    type="button"
-                    className="premium-card w-full rounded-[1.2rem] px-3 py-3 text-left text-xs text-white transition hover:border-cyan-300/20 hover:bg-white/[0.08]"
-                    onClick={() => {
-                      const value =
-                        result.userID ||
-                        result.userId ||
-                        result.email ||
-                        result.name;
-                      if (!value) return;
-
-                      setGroupMembersValue((current) =>
-                        current ? `${current}, ${value}` : value,
-                      );
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="truncate text-sm font-semibold">
-                        {result.name || result.email || result.userId}
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${presenceBadge.className}`}
-                      >
-                        {presenceBadge.label}
-                      </span>
-                    </div>
-                    <div className="mt-1 truncate text-[11px] text-slate-300/75">
-                      {result.email}
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-          {!groupSearchLoading && !groupSearchError && !groupMembersValue.trim() && (
-            <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
-              Type member emails or user IDs, or tap search results to fill the field.
-            </div>
-          )}
-          {showGroupSearchEmpty && (
-            <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
-              No eligible members found for this query yet.
-            </div>
-          )}
-          <button
-            type="submit"
-            className="w-full rounded-[1.15rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_40%,#2563eb_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!isConnected}
-          >
-            Create group
-          </button>
-        </form>
-      </div>
-
-      <div className="premium-card flex min-h-[18rem] shrink-0 flex-col overflow-hidden rounded-[1.45rem] p-3 sm:rounded-[1.7rem] sm:p-4">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
-            Conversations
-          </div>
-          <div className="text-[11px] text-slate-300/78">
-            {conversations?.length || 0} active
-          </div>
+            {showGroupSearchEmpty && (
+              <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
+                No eligible members found for this query yet.
+              </div>
+            )}
+            <button
+              type="submit"
+              className="w-full rounded-[1.15rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_40%,#2563eb_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!isConnected}
+            >
+              Create group
+            </button>
+          </form>
         </div>
-        <div>
-          <ConversationList
-            conversations={conversations}
-            active={active}
-            onSelect={onSelect}
-            typingStatus={typingStatus}
-            presenceByUserID={presenceByUserID}
-          />
+
+        <div className="premium-card flex min-h-[16rem] flex-col overflow-hidden rounded-[1.45rem] p-3 sm:rounded-[1.7rem] sm:p-4">
+          <div className="mb-3 flex items-center justify-between gap-3 px-1">
+            <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
+              Conversations
+            </div>
+            <div className="text-[11px] text-slate-300/78">
+              {conversations?.length || 0} active
+            </div>
+          </div>
+          <div>
+            <ConversationList
+              conversations={conversations}
+              active={active}
+              onSelect={onSelect}
+              typingStatus={typingStatus}
+              presenceByUserID={presenceByUserID}
+            />
+          </div>
         </div>
       </div>
     </div>
