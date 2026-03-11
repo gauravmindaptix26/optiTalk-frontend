@@ -84,6 +84,18 @@ select {
   display: none;
 }
 
+.stealth-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.stealth-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .soft-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
