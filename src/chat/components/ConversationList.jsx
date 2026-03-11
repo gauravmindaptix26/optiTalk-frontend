@@ -9,7 +9,7 @@ export default function ConversationList({
   presenceByUserID = {},
 }) {
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {conversations.map((conversation) => {
         const isActive =
           active &&
@@ -45,7 +45,7 @@ export default function ConversationList({
           <button
             key={`${conversation.type}-${conversation.id}`}
             onClick={() => onSelect?.(conversation)}
-            className={`group relative w-full overflow-hidden rounded-[1.45rem] border px-4 py-3 text-left transition duration-200 ${
+            className={`group relative w-full overflow-hidden rounded-[1.2rem] border px-3 py-2.5 text-left transition duration-200 ${
               isActive
                 ? "border-cyan-300/30 bg-[linear-gradient(135deg,rgba(94,234,212,0.14),rgba(96,165,250,0.12),rgba(255,255,255,0.08))] shadow-[0_20px_46px_rgba(8,47,73,0.25)]"
                 : "border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] hover:-translate-y-[1px] hover:border-white/16 hover:bg-white/[0.075]"
@@ -54,8 +54,8 @@ export default function ConversationList({
             <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
               <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-cyan-300/35 to-transparent" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.15rem] bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-[13px] font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
                 {conversation.title?.[0]?.toUpperCase() ?? "C"}
                 {conversation.type === 0 && (
                   <span
@@ -66,15 +66,15 @@ export default function ConversationList({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="truncate text-[0.95rem] font-semibold text-white">
+                  <div className="truncate text-[0.88rem] font-semibold text-white">
                     {conversation.title}
                   </div>
-                  <span className="shrink-0 rounded-full border border-white/10 bg-black/18 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">
+                  <span className="shrink-0 rounded-full border border-white/10 bg-black/18 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-cyan-100/80">
                     {typeLabel}
                   </span>
                 </div>
                 <div
-                  className={`mt-1 truncate text-xs leading-5 ${
+                  className={`mt-1 truncate text-[11px] leading-5 ${
                     isTyping ? "text-cyan-200" : "text-slate-300/82"
                   }`}
                 >
@@ -83,7 +83,7 @@ export default function ConversationList({
               </div>
               <div className="shrink-0 text-right">
                 {conversation.unreadCount > 0 && (
-                  <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 px-2.5 py-1 text-[11px] font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
+                  <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 px-2 py-0.5 text-[10px] font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
                     {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
                   </span>
                 )}
@@ -93,7 +93,7 @@ export default function ConversationList({
         );
       })}
       {conversations.length === 0 && (
-        <div className="rounded-[1.45rem] border border-dashed border-white/12 bg-black/12 px-4 py-8 text-center text-sm leading-6 text-slate-300/82">
+        <div className="rounded-[1.2rem] border border-dashed border-white/12 bg-black/12 px-4 py-6 text-center text-[13px] leading-5 text-slate-300/82">
           Start a direct chat or create a group to see conversations here.
         </div>
       )}

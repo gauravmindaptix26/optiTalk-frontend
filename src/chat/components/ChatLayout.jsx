@@ -56,7 +56,7 @@ export default function ChatLayout({
             </div>
           </main>
 
-          <aside className="hidden w-[320px] 2xl:flex">{rightPanel ?? null}</aside>
+          <aside className="hidden min-h-0 w-[320px] 2xl:flex">{rightPanel ?? null}</aside>
 
           <aside
             className={`premium-panel fixed inset-x-1.5 bottom-1.5 z-50 flex max-h-[82dvh] flex-col overflow-hidden rounded-[1.55rem] transition duration-300 sm:inset-x-2 sm:bottom-2 sm:max-h-[76dvh] sm:rounded-[1.9rem] 2xl:hidden ${

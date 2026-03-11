@@ -88,9 +88,9 @@ export default function MessageBubble({
 
   return (
     <div className={`flex ${isSelf ? "justify-end" : "justify-start"} px-1`}>
-      <div className={`flex max-w-[92%] items-end gap-3 sm:max-w-[78%] ${isSelf ? "flex-row-reverse" : ""}`}>
+      <div className={`flex max-w-[92%] items-end gap-2.5 sm:max-w-[76%] ${isSelf ? "flex-row-reverse" : ""}`}>
         {!isSelf && (
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold text-cyan-100/75 sm:flex">
+          <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-[1rem] border border-white/10 bg-white/5 text-[11px] font-semibold text-cyan-100/75 sm:flex">
             {(msg.senderUserID || "U").charAt(0).toUpperCase()}
           </div>
         )}
@@ -104,7 +104,7 @@ export default function MessageBubble({
               onOpenPopover?.(e.currentTarget);
             }
           }}
-          className={`group relative w-fit overflow-hidden rounded-[1.7rem] px-4 py-3.5 shadow-[0_18px_42px_rgba(2,8,23,0.18)] backdrop-blur-sm transition hover:-translate-y-[1px] ${
+          className={`group relative w-fit overflow-hidden rounded-[1.4rem] px-3.5 py-2.5 shadow-[0_18px_42px_rgba(2,8,23,0.18)] backdrop-blur-sm transition hover:-translate-y-[1px] ${
             isSelf
               ? "border border-cyan-200/10 bg-[linear-gradient(135deg,#2dd4bf_0%,#22d3ee_28%,#2563eb_100%)] text-slate-950"
               : "border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.045))] text-white"
@@ -120,14 +120,14 @@ export default function MessageBubble({
           </div>
 
           {!isSelf && (
-            <div className="mb-2 inline-flex max-w-full rounded-full border border-white/10 bg-black/12 px-2.5 py-1 text-[11px] uppercase tracking-[0.15em] text-cyan-100/75">
+            <div className="mb-1.5 inline-flex max-w-full rounded-full border border-white/10 bg-black/12 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-cyan-100/75">
               {msg.senderUserID}
             </div>
           )}
 
           {reply && (
             <div
-              className={`mb-3 rounded-2xl border-l-2 px-3 py-2 text-xs ${
+              className={`mb-2.5 rounded-[1rem] border-l-2 px-2.5 py-1.5 text-[11px] ${
                 isSelf
                   ? "border-slate-950/18 bg-slate-950/10 text-slate-900/78"
                   : "border-cyan-300/40 bg-black/12 text-slate-200/85"
@@ -142,7 +142,7 @@ export default function MessageBubble({
 
           {(attachment || isImage || isFile) && !msg.revoked && (
             <div
-              className={`mb-3 overflow-hidden rounded-[1.25rem] border ${
+              className={`mb-2.5 overflow-hidden rounded-[1.1rem] border ${
                 isSelf
                   ? "border-slate-950/10 bg-white/28"
                   : "border-white/10 bg-black/12"
@@ -161,9 +161,9 @@ export default function MessageBubble({
                   </div>
                 )
               ) : (
-                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">
+                    <div className="truncate text-[13px] font-semibold">
                       {fileLabel}
                     </div>
                     <div className="mt-1 text-xs text-slate-200/82">
@@ -195,7 +195,7 @@ export default function MessageBubble({
 
           {showText && (
             <div
-              className={`break-words whitespace-pre-wrap text-[0.95rem] leading-7 ${
+              className={`break-words whitespace-pre-wrap text-[0.9rem] leading-6 ${
                 msg.revoked
                   ? "italic text-slate-200/82"
                   : isSelf
@@ -208,7 +208,7 @@ export default function MessageBubble({
           )}
 
           <div
-            className={`mt-2 flex items-center gap-2 text-[11px] ${
+            className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
               isSelf ? "text-slate-950/72" : "text-slate-300/82"
             }`}
           >

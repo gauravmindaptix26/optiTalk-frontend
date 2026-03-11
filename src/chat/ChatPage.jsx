@@ -1497,6 +1497,11 @@ export default function ChatPage() {
         return exists ? prev : [newConv, ...prev];
       });
 
+      setMessagesByConv((prev) => {
+        const key = convKey(newConv.type, newConv.id);
+        return prev[key] ? prev : { ...prev, [key]: [] };
+      });
+
       await setActiveConversation(newConv);
       await ensureGroupJoined(groupID);
 
@@ -2315,12 +2320,12 @@ export default function ChatPage() {
           ) : null
         }
         rightPanel={
-          <div className="premium-panel mesh-accent h-full w-full space-y-4 rounded-[2rem] p-4 text-sm text-slate-200/82">
-            <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(59,130,246,0.14),rgba(15,23,42,0.2))] p-4">
+          <div className="premium-panel mesh-accent stealth-scroll h-full min-h-0 w-full space-y-3 overflow-y-auto rounded-[1.75rem] p-3 pr-2.5 text-[13px] text-slate-200/82">
+            <div className="rounded-[1.45rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(59,130,246,0.14),rgba(15,23,42,0.2))] p-3">
               <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
                 Chat info
               </div>
-              <div className="font-display mt-2 text-xl font-semibold text-white">
+              <div className="font-display mt-1.5 text-[1.1rem] font-semibold text-white">
                 {active?.title || "Workspace overview"}
               </div>
               <div className="mt-1 text-xs text-cyan-100/75">
@@ -2328,7 +2333,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <div className="premium-card grid gap-3 rounded-[1.45rem] p-3">
+            <div className="premium-card grid gap-2.5 rounded-[1.25rem] p-2.5">
               <div className="text-xs text-slate-300/82">
                 Signed in as <span className="font-semibold text-white">{user?.email || userID}</span>
               </div>

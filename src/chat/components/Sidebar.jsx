@@ -87,9 +87,9 @@ const getPresenceBadge = (presence) => {
 };
 
 const sectionShell =
-  "premium-card rounded-[1.35rem] p-3 sm:rounded-[1.6rem] sm:p-4 [animation:fadeUp_320ms_ease]";
+  "premium-card rounded-[1.2rem] p-2.5 sm:rounded-[1.4rem] sm:p-3 [animation:fadeUp_320ms_ease]";
 const inputShell =
-  "w-full rounded-[1.15rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-400/90 outline-none transition focus:border-cyan-300/30 focus:bg-black/28 focus:ring-2 focus:ring-cyan-300/20";
+  "w-full rounded-[1rem] border border-white/10 bg-black/20 px-3.5 py-2.5 text-[13px] text-white placeholder:text-slate-400/90 outline-none transition focus:border-cyan-300/30 focus:bg-black/28 focus:ring-2 focus:ring-cyan-300/20";
 
 const parseMemberEntries = (value) =>
   String(value ?? "")
@@ -179,14 +179,14 @@ export default function Sidebar({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3 sm:gap-4">
-      <div className="relative shrink-0 overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.22),rgba(59,130,246,0.12),rgba(12,20,34,0.2))] p-3.5 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.9rem] sm:p-4">
+      <div className="relative shrink-0 overflow-hidden rounded-[1.4rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.22),rgba(59,130,246,0.12),rgba(12,20,34,0.2))] p-3 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.65rem] sm:p-3.5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(94,234,212,0.1),transparent_28%)]" />
         <div className="relative mb-3 flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/75">
               Team chat
             </div>
-            <div className="font-display mt-2 text-[1.05rem] font-semibold text-white sm:text-[1.22rem]">
+            <div className="font-display mt-1.5 text-[0.98rem] font-semibold text-white sm:text-[1.12rem]">
               Pulse Workspace
             </div>
             <div className="mt-1 max-w-[14rem] text-[11px] leading-5 text-cyan-50/72">
@@ -217,15 +217,15 @@ export default function Sidebar({
             <img
               src={photo}
               alt={displayName}
-              className="h-14 w-14 rounded-[1.25rem] border border-white/10 object-cover shadow-lg shadow-cyan-950/20"
+              className="h-12 w-12 rounded-[1.1rem] border border-white/10 object-cover shadow-lg shadow-cyan-950/20"
             />
           ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-lg font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[1.1rem] bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
               {displayName?.[0]?.toUpperCase() ?? "U"}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-base font-semibold text-white">
+            <div className="truncate text-[15px] font-semibold text-white">
               {displayName}
             </div>
             <div className="truncate text-xs text-cyan-100/70">
@@ -289,7 +289,7 @@ export default function Sidebar({
                 return (
                   <button
                     key={result.userID || result.userId || result.email || result.name}
-                    className="premium-card w-full rounded-[1.3rem] px-3 py-3 text-left text-sm text-white transition hover:-translate-y-[1px] hover:border-cyan-300/20 hover:bg-white/[0.08]"
+                    className="premium-card w-full rounded-[1.15rem] px-3 py-2.5 text-left text-[13px] text-white transition hover:-translate-y-[1px] hover:border-cyan-300/20 hover:bg-white/[0.08]"
                     onClick={() =>
                       onStartNewChat?.(
                         result.userID || result.userId || result.email || result.name,
@@ -472,7 +472,7 @@ export default function Sidebar({
             )}
             <button
               type="submit"
-              className="w-full rounded-[1.15rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_40%,#2563eb_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-[1rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_40%,#2563eb_100%)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_16px_32px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!isConnected || !groupNameValue.trim() || !pendingGroupMembers.length}
             >
               Create group

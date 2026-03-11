@@ -15,7 +15,7 @@ const EMOJIS = [
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 const iconButtonClass =
-  "inline-flex h-10 w-10 items-center justify-center rounded-[1.05rem] border border-white/10 bg-white/[0.045] text-slate-100 transition hover:-translate-y-[1px] hover:bg-white/[0.09] sm:h-11 sm:w-11 sm:rounded-2xl";
+  "inline-flex h-9 w-9 items-center justify-center rounded-[0.95rem] border border-white/10 bg-white/[0.045] text-slate-100 transition hover:-translate-y-[1px] hover:bg-white/[0.09] sm:h-10 sm:w-10 sm:rounded-[1rem]";
 
 const SmileIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5" aria-hidden="true">
@@ -204,10 +204,10 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
   return (
     <form
       onSubmit={submit}
-      className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(8,15,28,0.18),rgba(8,15,28,0.38))] px-2.5 pb-2.5 pt-2.5 backdrop-blur sm:px-6 sm:pb-5 sm:pt-3"
+      className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(8,15,28,0.18),rgba(8,15,28,0.38))] px-2.5 pb-2.5 pt-2 backdrop-blur sm:px-5 sm:pb-4 sm:pt-2.5"
     >
       {attachment && (
-        <div className="premium-card mb-3 rounded-[1.4rem] px-4 py-3 text-sm text-white">
+        <div className="premium-card mb-2.5 rounded-[1.2rem] px-3.5 py-2.5 text-[13px] text-white">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate font-semibold">{attachment.name}</div>
