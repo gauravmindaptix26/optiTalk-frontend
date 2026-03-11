@@ -2320,7 +2320,7 @@ export default function ChatPage() {
           ) : null
         }
         rightPanel={
-          <div className="premium-panel mesh-accent stealth-scroll flex h-full min-h-0 max-h-full w-full flex-1 flex-col space-y-3 overflow-y-scroll overscroll-contain rounded-[1.75rem] p-3 pb-10 pr-2.5 text-[13px] text-slate-200/82">
+          <div className="premium-panel stealth-scroll flex h-full min-h-0 max-h-full w-full flex-1 flex-col space-y-3 overflow-y-scroll overscroll-contain rounded-[1.75rem] p-3 pb-10 pr-2.5 text-[13px] text-slate-200/82">
             <div className="rounded-[1.45rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(59,130,246,0.14),rgba(15,23,42,0.2))] p-3">
               <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
                 Chat info
