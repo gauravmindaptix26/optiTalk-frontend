@@ -52,6 +52,11 @@ export default function MessageBubble({
   const isText = msg?.type === ZIMMessageType.Text;
   const isImage = msg?.type === ZIMMessageType.Image;
   const isFile = msg?.type === ZIMMessageType.File;
+  const fileLocalPath = msg?.fileLocalPath;
+  const localMediaUrl = useMemo(() => {
+    if (!(fileLocalPath instanceof File)) return "";
+    return URL.createObjectURL(fileLocalPath);
+  }, [fileLocalPath]);
   const mediaUrl =
     msg?.largeImageDownloadUrl ||
     msg?.fileDownloadUrl ||
@@ -73,11 +78,6 @@ export default function MessageBubble({
     !!msg?.messageID &&
     !msg?.revoked &&
     (readCount > 0 || unreadCount > 0);
-
-  const localMediaUrl = useMemo(() => {
-    if (!(msg?.fileLocalPath instanceof File)) return "";
-    return URL.createObjectURL(msg.fileLocalPath);
-  }, [msg?.fileLocalPath]);
 
   useEffect(
     () => () => {

@@ -233,17 +233,28 @@ export default function ChatPage() {
     if (!users.length) return;
 
     setPresenceByUserID((prev) => {
+      let changed = false;
       const next = { ...prev };
       for (const user of users) {
         const id = toZegoUserID(user?.userID || user?.userId || user?.email || "");
         if (!id) continue;
-        next[id] = {
+        const nextValue = {
           presence: user?.presence || "unknown",
           lastSeen: user?.lastSeen || 0,
           name: user?.name || user?.email || id,
         };
+        const currentValue = prev[id];
+        if (
+          currentValue?.presence === nextValue.presence &&
+          currentValue?.lastSeen === nextValue.lastSeen &&
+          currentValue?.name === nextValue.name
+        ) {
+          continue;
+        }
+        next[id] = nextValue;
+        changed = true;
       }
-      return next;
+      return changed ? next : prev;
     });
   }, [groupSearchResults, searchResults]);
 
@@ -368,13 +379,20 @@ export default function ChatPage() {
     } catch {
       // ignore
     }
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conversation.id && c.type === conversation.type
-          ? { ...c, unreadCount: 0 }
-          : c,
-      ),
-    );
+    setConversations((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (c.id !== conversation.id || c.type !== conversation.type) {
+          return c;
+        }
+        if ((c.unreadCount ?? 0) === 0) {
+          return c;
+        }
+        changed = true;
+        return { ...c, unreadCount: 0 };
+      });
+      return changed ? next : prev;
+    });
   };
 
   const refreshConversationList = async () => {
@@ -833,7 +851,22 @@ export default function ChatPage() {
         }
 
         if (Object.keys(nextEntries).length) {
-          setReceiptInfoByMessageID((prev) => ({ ...prev, ...nextEntries }));
+          setReceiptInfoByMessageID((prev) => {
+            let changed = false;
+            const merged = { ...prev };
+            for (const [messageID, value] of Object.entries(nextEntries)) {
+              const current = prev[messageID];
+              if (
+                current?.readMemberCount === value?.readMemberCount &&
+                current?.unreadMemberCount === value?.unreadMemberCount
+              ) {
+                continue;
+              }
+              merged[messageID] = value;
+              changed = true;
+            }
+            return changed ? merged : prev;
+          });
         }
       } catch {
         // ignore receipt refresh noise
@@ -1010,15 +1043,27 @@ export default function ChatPage() {
           const { infos } = data;
           setMessagesByConv((prev) => {
             const next = { ...prev };
+            let changed = false;
             for (const info of infos ?? []) {
               const key = convKey(info.conversationType, info.conversationID);
-              next[key] = (next[key] ?? []).map((m) =>
-                m.messageID === info.messageID
-                  ? { ...m, receiptStatus: info.receiptStatus }
-                  : m,
-              );
+              const currentMessages = next[key] ?? [];
+              let localChanged = false;
+              const updatedMessages = currentMessages.map((m) => {
+                if (m.messageID !== info.messageID) {
+                  return m;
+                }
+                if (m.receiptStatus === info.receiptStatus) {
+                  return m;
+                }
+                localChanged = true;
+                return { ...m, receiptStatus: info.receiptStatus };
+              });
+              if (localChanged) {
+                next[key] = updatedMessages;
+                changed = true;
+              }
             }
-            return next;
+            return changed ? next : prev;
           });
         });
 
@@ -1205,11 +1250,6 @@ export default function ChatPage() {
     [],
   );
 
-  useEffect(() => {
-    // Mark messages as read when viewing a conversation to drive double-tick receipts.
-    markActiveAsRead();
-  }, [active, messagesByConv]);
-
   const startNewChat = async (raw) => {
     const id = toZegoUserID(raw);
     if (!id) return;
@@ -1393,11 +1433,20 @@ export default function ChatPage() {
     } catch {
       // ignore
     }
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === active.id && c.type === active.type ? { ...c, unreadCount: 0 } : c,
-      ),
-    );
+    setConversations((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (c.id !== active.id || c.type !== active.type) {
+          return c;
+        }
+        if ((c.unreadCount ?? 0) === 0) {
+          return c;
+        }
+        changed = true;
+        return { ...c, unreadCount: 0 };
+      });
+      return changed ? next : prev;
+    });
   };
 
   const handleReact = async (msg, emoji) => {
