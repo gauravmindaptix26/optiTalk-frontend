@@ -172,6 +172,11 @@ export default function ChatPage() {
   const lastNotifiedMessageRef = useRef(new Map());
   const browserNotificationsRef = useRef(new Map());
   const receiptRefreshTimeoutRef = useRef(null);
+  const activeMessages = useMemo(
+    () =>
+      active ? messagesByConv[convKey(active.type, active.id)] ?? [] : [],
+    [active, messagesByConv],
+  );
 
   useEffect(() => {
     activeRef.current = active;
@@ -323,9 +328,6 @@ export default function ChatPage() {
   const profilePhoto = profile?.photo || (user?.picture ? String(user.picture) : "");
 
   const isConnected = status.phase === "connected";
-  const activeMessages = active
-    ? messagesByConv[convKey(active.type, active.id)] ?? []
-    : [];
   const messageSearchResults = useMemo(() => {
     const query = messageSearchInput.trim().toLowerCase();
     if (!query) return [];
