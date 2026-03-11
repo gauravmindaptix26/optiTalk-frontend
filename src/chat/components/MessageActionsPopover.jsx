@@ -3,6 +3,9 @@ import ReactDOM from "react-dom";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
+const actionClass =
+  "rounded-xl px-2.5 py-1.5 text-sm text-slate-200 transition hover:bg-white/8 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/20";
+
 const PopoverContent = ({
   anchor,
   message,
@@ -37,23 +40,23 @@ const PopoverContent = ({
 
   const style = {
     position: "absolute",
-    top: anchor.top - 10,
+    top: anchor.top - 12,
     left: anchor.left,
-    transform: "translate(-10%, -100%)",
+    transform: "translate(-12%, -100%)",
     zIndex: 50,
   };
 
   return (
-    <div
-      ref={ref}
-      style={style}
-      className="rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl px-3 py-2 text-white"
-    >
+    <div ref={ref} style={style} className="premium-panel rounded-[1.4rem] px-3 py-3 text-white">
+      <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-cyan-100/65">
+        Quick actions
+      </div>
+
       <div className="flex items-center gap-1">
         {EMOJIS.map((emoji) => (
           <button
             key={emoji}
-            className="px-2 py-1 rounded-full hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-full bg-white/5 px-2.5 py-1.5 text-lg transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
             onClick={() => onReact?.(message, emoji)}
           >
             {emoji}
@@ -61,27 +64,18 @@ const PopoverContent = ({
         ))}
       </div>
 
-      <div className="mt-2 flex items-center gap-3 text-sm">
-        <button
-          className="hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-white/30 rounded-md px-1"
-          onClick={() => onReply?.(message)}
-        >
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
+        <button className={actionClass} onClick={() => onReply?.(message)}>
           Reply
         </button>
-        <button
-          className="hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-white/30 rounded-md px-1"
-          onClick={() => onForward?.(message)}
-        >
+        <button className={actionClass} onClick={() => onForward?.(message)}>
           Forward
         </button>
-        <button
-          className="hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-white/30 rounded-md px-1"
-          onClick={() => onTogglePin?.(message)}
-        >
+        <button className={actionClass} onClick={() => onTogglePin?.(message)}>
           {message?.pinnedTime ? "Unpin" : "Pin"}
         </button>
         <button
-          className="text-red-200 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-red-200/40 rounded-md px-1"
+          className="rounded-xl px-2.5 py-1.5 text-sm text-red-200 transition hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-red-300/20"
           onClick={() => onDeleteRequest?.(message)}
         >
           Delete

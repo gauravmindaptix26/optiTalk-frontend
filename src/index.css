@@ -1,4 +1,79 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --app-bg: #07111f;
+  --panel-bg: rgba(10, 19, 35, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --panel-shadow: 0 24px 80px rgba(3, 10, 24, 0.45);
+  --text-primary: #f7fbff;
+  --text-secondary: rgba(214, 230, 255, 0.72);
+  --accent: #5eead4;
+  --accent-strong: #60a5fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(94, 234, 212, 0.2), transparent 30%),
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 24%),
+    linear-gradient(135deg, #050b16 0%, #09111f 46%, #0d1628 100%);
+}
+
+body {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.12), transparent 20%),
+    radial-gradient(circle at 85% 12%, rgba(99, 102, 241, 0.16), transparent 18%),
+    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.1), transparent 24%),
+    linear-gradient(135deg, #040914 0%, #0a1324 52%, #0c1529 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.38), transparent 92%);
+  opacity: 0.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: "Space Grotesk", "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(94, 234, 212, 0.28);
+  color: #ffffff;
+}
 
 .scrollbar-hidden {
   -ms-overflow-style: none;
@@ -7,6 +82,85 @@
 
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
+}
+
+.soft-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+}
+
+.soft-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.soft-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.soft-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.38), rgba(51, 65, 85, 0.18));
+  background-clip: padding-box;
+}
+
+.premium-panel {
+  background: linear-gradient(180deg, rgba(10, 19, 35, 0.76), rgba(8, 15, 28, 0.7));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(24px);
+}
+
+.premium-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 48px rgba(2, 8, 23, 0.22);
+}
+
+.mesh-accent {
+  position: relative;
+  overflow: hidden;
+}
+
+.mesh-accent::before {
+  content: "";
+  position: absolute;
+  inset: auto -12% -48% 30%;
+  height: 180px;
+  background: radial-gradient(circle, rgba(94, 234, 212, 0.18), transparent 64%);
+  pointer-events: none;
+}
+
+.mesh-accent::after {
+  content: "";
+  position: absolute;
+  inset: -35% 42% auto -14%;
+  height: 170px;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.16), transparent 68%);
+  pointer-events: none;
+}
+
+@keyframes floatAura {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.04);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes toastShrink {

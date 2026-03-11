@@ -127,14 +127,25 @@ export default function MessageList({
     <div className="relative flex h-full flex-col">
       <div
         ref={scrollRef}
-        className="flex-1 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.14),transparent_26%)] px-3 py-4 sm:px-6 sm:py-6"
+        className="soft-scrollbar relative flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-6 sm:py-6"
       >
-        <div className="space-y-3">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(94,234,212,0.08),transparent_24%),radial-gradient(circle_at_85%_10%,rgba(96,165,250,0.08),transparent_22%),radial-gradient(circle_at_bottom,rgba(16,185,129,0.05),transparent_26%)]" />
+        <div className="pointer-events-none absolute inset-y-0 left-[14%] hidden w-px bg-gradient-to-b from-transparent via-white/6 to-transparent lg:block" />
+        <div className="relative space-y-4">
+          {!!searchQuery && (
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-400/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-cyan-100/78">
+              Search active
+              <span className="truncate normal-case tracking-normal text-white/88">
+                {searchQuery}
+              </span>
+            </div>
+          )}
+
           {rendered.map((item) => {
             if (item.kind === "separator") {
               return (
                 <div key={item.key} className="flex justify-center py-1">
-                  <div className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-cyan-100/70 backdrop-blur">
+                  <div className="rounded-full border border-white/10 bg-[#09111d]/85 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.18em] text-cyan-100/70 shadow-lg shadow-slate-950/20 backdrop-blur">
                     {item.label}
                   </div>
                 </div>
@@ -152,7 +163,7 @@ export default function MessageList({
                   highlightedMessageID &&
                   (message.messageID === highlightedMessageID ||
                     message.localMessageID === highlightedMessageID)
-                    ? "rounded-[1.6rem] ring-2 ring-cyan-300/40 ring-offset-2 ring-offset-transparent transition"
+                    ? "rounded-[1.75rem] ring-2 ring-cyan-300/38 ring-offset-2 ring-offset-transparent transition"
                     : ""
                 }
               >
@@ -172,14 +183,14 @@ export default function MessageList({
 
           {rendered.length === 0 && (
             <div className="flex min-h-full items-center justify-center py-10">
-              <div className="max-w-sm rounded-[1.75rem] border border-dashed border-white/15 bg-white/[0.05] px-6 py-8 text-center">
+              <div className="premium-card max-w-md rounded-[1.9rem] px-6 py-8 text-center">
                 <div className="text-[11px] uppercase tracking-[0.26em] text-cyan-100/65">
                   No messages yet
                 </div>
-                <div className="mt-3 text-base font-semibold text-white">
+                <div className="font-display mt-3 text-[1.1rem] font-semibold text-white">
                   Start this conversation with a clean first message.
                 </div>
-                <div className="mt-2 text-sm text-purple-200">
+                <div className="mt-2 text-sm leading-6 text-slate-300/82">
                   Replies, reactions, attachments and receipts will appear here.
                 </div>
               </div>
@@ -231,30 +242,33 @@ export default function MessageList({
       </Suspense>
 
       {receiptDetailState?.open && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-          <div className="max-h-[78vh] w-full max-w-md overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#101735] shadow-2xl shadow-slate-950/40">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/62 px-4 backdrop-blur-sm">
+          <div className="premium-panel max-h-[78vh] w-full max-w-md overflow-hidden rounded-[1.8rem]">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">
+                  Delivery
+                </div>
                 <div className="text-sm font-semibold text-white">Read receipts</div>
-                <div className="text-xs text-purple-200">
+                <div className="text-xs text-slate-300/78">
                   {(receiptDetailState.readMembers?.length || 0)} read, {(receiptDetailState.unreadMembers?.length || 0)} unread
                 </div>
               </div>
               <button
                 type="button"
                 onClick={onCloseReceiptDetails}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
               >
-                x
+                ×
               </button>
             </div>
-            <div className="scrollbar-hidden max-h-[calc(78vh-74px)] space-y-4 overflow-y-auto p-4">
+            <div className="soft-scrollbar max-h-[calc(78vh-74px)] space-y-4 overflow-y-auto p-4">
               {receiptDetailState.loading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-6 text-center text-sm text-purple-200">
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] px-4 py-6 text-center text-sm text-slate-300/82">
                   Loading receipt details...
                 </div>
               ) : receiptDetailState.error ? (
-                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+                <div className="rounded-[1.3rem] border border-red-400/20 bg-red-500/10 px-4 py-4 text-sm text-red-200">
                   {receiptDetailState.error}
                 </div>
               ) : (
@@ -267,13 +281,13 @@ export default function MessageList({
                       {(receiptDetailState.readMembers || []).map((member) => (
                         <div
                           key={`read-${member.userID}`}
-                          className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white"
+                          className="premium-card rounded-[1.25rem] px-3 py-3 text-sm text-white"
                         >
                           {member.userName || member.memberNickname || member.userID}
                         </div>
                       ))}
                       {!receiptDetailState.readMembers?.length && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                        <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
                           No one has read this message yet.
                         </div>
                       )}
@@ -287,13 +301,13 @@ export default function MessageList({
                       {(receiptDetailState.unreadMembers || []).map((member) => (
                         <div
                           key={`unread-${member.userID}`}
-                          className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white"
+                          className="premium-card rounded-[1.25rem] px-3 py-3 text-sm text-white"
                         >
                           {member.userName || member.memberNickname || member.userID}
                         </div>
                       ))}
                       {!receiptDetailState.unreadMembers?.length && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                        <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
                           Everyone in this group has read the message.
                         </div>
                       )}

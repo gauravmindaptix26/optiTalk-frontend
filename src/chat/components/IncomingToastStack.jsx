@@ -8,7 +8,7 @@ export default function IncomingToastStack({ toasts = [], onOpen, onDismiss }) {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="pointer-events-auto overflow-hidden rounded-[1.5rem] border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(37,99,235,0.14),rgba(15,23,42,0.88))] shadow-2xl shadow-cyan-950/30 backdrop-blur-xl"
+          className="premium-panel pointer-events-auto overflow-hidden rounded-[1.6rem]"
         >
           <div className="flex items-start gap-3 px-4 py-3">
             <button
@@ -16,7 +16,7 @@ export default function IncomingToastStack({ toasts = [], onOpen, onDismiss }) {
               onClick={() => onOpen?.(toast)}
               className="flex min-w-0 flex-1 items-start gap-3 text-left"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-sm font-semibold text-slate-950">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.15rem] bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-950/25">
                 {toast.title?.[0]?.toUpperCase() ?? "C"}
               </div>
               <div className="min-w-0">
@@ -26,7 +26,7 @@ export default function IncomingToastStack({ toasts = [], onOpen, onDismiss }) {
                 <div className="truncate text-sm font-semibold text-white">
                   {toast.title}
                 </div>
-                <div className="mt-1 line-clamp-2 text-sm text-cyan-50/85">
+                <div className="mt-1 line-clamp-2 text-sm text-slate-300/85">
                   {toast.preview}
                 </div>
               </div>
@@ -37,7 +37,7 @@ export default function IncomingToastStack({ toasts = [], onOpen, onDismiss }) {
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
               aria-label="Dismiss notification"
             >
-              x
+              ×
             </button>
           </div>
           <div className="h-1 w-full bg-white/5">

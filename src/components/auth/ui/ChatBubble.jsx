@@ -11,14 +11,14 @@ const ChatBubble = ({ text, isUser, delay }) => {
   return (
     <div
       className={`flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-700 ${
-        show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        show ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
       }`}
     >
       <div
-        className={`px-6 py-3 rounded-3xl shadow-lg max-w-xs ${
+        className={`max-w-sm rounded-[1.4rem] px-4 py-3 text-sm leading-6 shadow-[0_18px_40px_rgba(2,8,23,0.2)] ${
           isUser
-            ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-            : "bg-white/90 text-gray-800"
+            ? "bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_45%,#2563eb_100%)] text-white"
+            : "border border-white/10 bg-white/[0.08] text-slate-100 backdrop-blur"
         }`}
       >
         {text}

@@ -12,19 +12,31 @@ const initials = (name) => {
     .join("");
 };
 
+const CameraIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+    <path
+      d="M6.75 5.5 8 4h4l1.25 1.5H15A1.75 1.75 0 0 1 16.75 7.25v6A1.75 1.75 0 0 1 15 15H5A1.75 1.75 0 0 1 3.25 13.25v-6A1.75 1.75 0 0 1 5 5.5h1.75ZM10 13a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 10 13Z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const Avatar = ({ photo, name }) => {
   if (photo) {
     return (
       <img
         src={photo}
         alt="Profile"
-        className="w-12 h-12 rounded-2xl object-cover border border-white/10"
+        className="h-16 w-16 rounded-[1.35rem] border border-white/10 object-cover shadow-lg shadow-cyan-950/20"
       />
     );
   }
 
   return (
-    <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-white font-semibold">
+    <div className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-white/10 bg-gradient-to-br from-cyan-300 via-sky-400 to-indigo-500 text-lg font-semibold text-slate-950 shadow-lg shadow-cyan-950/20">
       {initials(name)}
     </div>
   );
@@ -79,14 +91,19 @@ export default function ProfilePanel({ profile, onSave, onClose }) {
   };
 
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="premium-panel mesh-accent rounded-[2rem] p-5 shadow-[0_32px_90px_rgba(2,8,23,0.48)]">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-4">
           <Avatar photo={photo} name={displayName} />
           <div className="min-w-0">
-            <div className="text-white font-semibold truncate">Profile</div>
-            <div className="text-purple-200 text-sm truncate">
-              Save your name and photo
+            <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/70">
+              Profile settings
+            </div>
+            <div className="font-display mt-2 text-xl font-semibold text-white">
+              My profile
+            </div>
+            <div className="mt-1 text-sm text-slate-300/82">
+              Save your name and photo without affecting chat functionality.
             </div>
           </div>
         </div>
@@ -94,40 +111,54 @@ export default function ProfilePanel({ profile, onSave, onClose }) {
         <button
           type="button"
           onClick={onClose}
-          className="text-purple-200 hover:text-white transition text-sm"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-slate-200 transition hover:bg-white/10"
         >
-          Close
+          ×
         </button>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-4">
         <label className="block">
-          <div className="text-sm text-purple-200 mb-1">Display name</div>
+          <div className="mb-2 text-sm font-medium text-slate-200">
+            Display name
+          </div>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full rounded-xl px-4 py-3 bg-white/10 text-white placeholder:text-white/40 border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+            className="w-full rounded-[1.2rem] border border-white/10 bg-black/18 px-4 py-3 text-white placeholder:text-slate-400/90 outline-none transition focus:border-cyan-300/30 focus:ring-2 focus:ring-cyan-300/20"
             placeholder="Enter your name"
           />
         </label>
 
         <label className="block">
-          <div className="text-sm text-purple-200 mb-1">Profile photo</div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => onPickPhoto(e.target.files?.[0])}
-            className="block w-full text-sm text-purple-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-white/10 file:text-white hover:file:bg-white/15"
-          />
+          <div className="mb-2 text-sm font-medium text-slate-200">
+            Profile photo
+          </div>
+          <div className="rounded-[1.2rem] border border-white/10 bg-black/18 px-4 py-4">
+            <div className="mb-3 inline-flex items-center gap-2 text-sm text-slate-300/82">
+              <CameraIcon />
+              Upload a clean profile image under 1MB.
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => onPickPhoto(e.target.files?.[0])}
+              className="block w-full text-sm text-slate-300/82 file:mr-4 file:rounded-xl file:border file:border-white/10 file:bg-white/8 file:px-4 file:py-2.5 file:text-white hover:file:bg-white/12"
+            />
+          </div>
         </label>
 
-        {error && <div className="text-red-200 text-sm">{error}</div>}
+        {error && (
+          <div className="rounded-[1.1rem] border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
         <button
           type="button"
           onClick={save}
           disabled={!canSave}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50"
+          className="w-full rounded-[1.2rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_42%,#2563eb_100%)] py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save profile
         </button>
@@ -135,4 +166,3 @@ export default function ProfilePanel({ profile, onSave, onClose }) {
     </div>
   );
 }
-

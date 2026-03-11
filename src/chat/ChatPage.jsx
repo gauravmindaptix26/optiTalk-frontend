@@ -1986,24 +1986,24 @@ export default function ChatPage() {
         messageList={
           status.phase === "error" ? (
             <div className="p-6">
-              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 text-white">
-                <div className="font-semibold">Chat setup error</div>
-                <div className="text-red-200 mt-2 break-words">{status.error}</div>
-                <div className="text-purple-200 mt-3 text-sm">
+              <div className="premium-card rounded-[1.7rem] border border-red-400/20 bg-red-500/10 p-5 text-white">
+                <div className="font-display text-lg font-semibold">Chat setup error</div>
+                <div className="mt-2 break-words text-red-200">{status.error}</div>
+                <div className="mt-3 text-sm text-slate-300/82">
                   Check `frontend/.env` and backend `/api/token`.
                 </div>
               </div>
             </div>
           ) : !active ? (
             <div className="flex h-full items-center justify-center px-6">
-              <div className="max-w-md rounded-[1.9rem] border border-dashed border-white/15 bg-white/[0.05] px-6 py-8 text-center">
+              <div className="premium-card max-w-xl rounded-[2rem] border border-dashed border-white/12 px-7 py-9 text-center">
                 <div className="text-[11px] uppercase tracking-[0.26em] text-cyan-100/65">
                   No chat selected
                 </div>
-                <div className="mt-3 text-xl font-semibold text-white">
+                <div className="font-display mt-3 text-[1.45rem] font-semibold text-white">
                   Pick a conversation or start a fresh one.
                 </div>
-                <div className="mt-3 text-sm text-purple-200">
+                <div className="mt-3 text-sm leading-6 text-slate-300/82">
                   Search for a teammate, create a group, or open the sidebar from the hamburger menu on mobile.
                 </div>
               </div>
@@ -2035,7 +2035,7 @@ export default function ChatPage() {
                 highlightedMessageID={focusedMessageID}
                 searchQuery={messageSearchInput}
               />
-              <div className="px-6 text-purple-200 text-sm">
+              <div className="px-6 pb-1 text-sm text-cyan-100/72">
                 {typingStatus &&
                 active &&
                 typingStatus.id === active.id &&
@@ -2052,12 +2052,12 @@ export default function ChatPage() {
           ) : null
         }
         rightPanel={
-          <div className="h-full w-full space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-purple-100 backdrop-blur-xl">
-            <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(99,102,241,0.18),rgba(15,23,42,0.2))] p-4">
+          <div className="premium-panel mesh-accent h-full w-full space-y-4 rounded-[2rem] p-4 text-sm text-slate-200/82">
+            <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(59,130,246,0.14),rgba(15,23,42,0.2))] p-4">
               <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
                 Chat info
               </div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="font-display mt-2 text-xl font-semibold text-white">
                 {active?.title || "Workspace overview"}
               </div>
               <div className="mt-1 text-xs text-cyan-100/75">
@@ -2065,25 +2065,25 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
-              <div className="text-xs text-purple-200">
+            <div className="premium-card grid gap-3 rounded-[1.45rem] p-3">
+              <div className="text-xs text-slate-300/82">
                 Signed in as <span className="font-semibold text-white">{user?.email || userID}</span>
               </div>
-              <div className="text-xs text-purple-200">
+              <div className="text-xs text-slate-300/82">
                 Current room: <span className="font-semibold text-white">{appRoomID}</span>
               </div>
-              <div className="text-xs text-purple-200">
+              <div className="text-xs text-slate-300/82">
                 Status: <span className="font-semibold text-white">{subtitle || "Ready"}</span>
               </div>
             </div>
 
             {active && (
-              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+              <div className="premium-card rounded-[1.45rem] p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-semibold text-white">Search messages</div>
                   <button
                     type="button"
-                    className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] text-cyan-50 transition hover:bg-white/15"
+                    className="rounded-full border border-white/10 bg-white/8 px-2.5 py-1 text-[11px] text-cyan-50 transition hover:bg-white/12"
                     onClick={() => setMessageSearchOpen((prev) => !prev)}
                   >
                     {messageSearchOpen ? "Hide" : "Open"}
@@ -2095,38 +2095,38 @@ export default function ChatPage() {
                       value={messageSearchInput}
                       onChange={(e) => setMessageSearchInput(e.target.value)}
                       placeholder="Search text, sender, caption..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+                      className="w-full rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                     />
-                    <div className="scrollbar-hidden max-h-48 space-y-2 overflow-y-auto pr-1">
+                    <div className="soft-scrollbar max-h-48 space-y-2 overflow-y-auto pr-1">
                       {(messageSearchInput.trim() ? messageSearchResults : []).map((message) => (
                         <button
                           key={`search-${message.messageID || message.localMessageID}`}
                           type="button"
-                          className="w-full rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left transition hover:bg-white/[0.06]"
+                          className="premium-card w-full rounded-[1.2rem] px-3 py-2 text-left transition hover:bg-white/[0.08]"
                           onClick={() => focusThreadMessage(message)}
                         >
                           <div className="truncate text-xs font-medium text-white">
                             {message.senderUserID}
                           </div>
-                          <div className="mt-1 truncate text-xs text-purple-200">
+                          <div className="mt-1 truncate text-xs text-slate-300/82">
                             {getMessagePreview(message) || "Attachment"}
                           </div>
                         </button>
                       ))}
                       {messageSearchInput.trim() && !messageSearchResults.length && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                        <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
                           No matching messages in this conversation yet.
                         </div>
                       )}
                       {!messageSearchInput.trim() && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                        <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
                           Search runs inside the currently open conversation.
                         </div>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-purple-200">
+                  <div className="text-xs text-slate-300/82">
                     Tap open to search inside this conversation and jump to any message.
                   </div>
                 )}
@@ -2134,31 +2134,31 @@ export default function ChatPage() {
             )}
 
             {active && (
-              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+              <div className="premium-card rounded-[1.45rem] p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-semibold text-white">Pinned messages</div>
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-purple-100">
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-200/82">
                     {pinnedMessages.length}
                   </span>
                 </div>
-                <div className="scrollbar-hidden max-h-52 space-y-2 overflow-y-auto pr-1">
+                <div className="soft-scrollbar max-h-52 space-y-2 overflow-y-auto pr-1">
                   {pinnedMessages.map((message) => (
                     <button
                       key={`pinned-${message.messageID || message.localMessageID}`}
                       type="button"
-                      className="w-full rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left transition hover:bg-white/[0.06]"
+                      className="premium-card w-full rounded-[1.2rem] px-3 py-2 text-left transition hover:bg-white/[0.08]"
                       onClick={() => focusThreadMessage(message)}
                     >
                       <div className="truncate text-xs font-medium text-white">
                         {message.senderUserID}
                       </div>
-                      <div className="mt-1 truncate text-xs text-purple-200">
+                      <div className="mt-1 truncate text-xs text-slate-300/82">
                         {getMessagePreview(message) || "Pinned message"}
                       </div>
                     </button>
                   ))}
                   {!pinnedMessages.length && (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-purple-200">
+                    <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
                       Pin important messages from the message action menu.
                     </div>
                   )}
@@ -2168,7 +2168,7 @@ export default function ChatPage() {
 
             {active?.type === ZIMConversationType.Group && (
               <div className="space-y-3">
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                <div className="premium-card rounded-[1.45rem] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       {activeGroupInfo?.groupAvatarUrl ? (
@@ -2191,7 +2191,7 @@ export default function ChatPage() {
                       <div className="mt-2 text-base font-semibold text-white">
                         {activeGroupInfo?.groupName || active.title}
                       </div>
-                      <div className="mt-1 break-all text-xs text-purple-200">
+                      <div className="mt-1 break-all text-xs text-slate-300/82">
                         ID: {activeGroupInfo?.groupID || active.id}
                       </div>
                     </div>
@@ -2201,7 +2201,7 @@ export default function ChatPage() {
                     </span>
                   </div>
                   {activeGroupInfo?.groupNotice ? (
-                    <div className="mt-3 rounded-2xl border border-white/10 bg-black/15 px-3 py-2 text-xs text-purple-100">
+                    <div className="mt-3 rounded-[1.2rem] border border-white/10 bg-black/15 px-3 py-2 text-xs text-slate-200/82">
                       {activeGroupInfo.groupNotice}
                     </div>
                   ) : null}
@@ -2214,7 +2214,7 @@ export default function ChatPage() {
                           : "Member"}
                     </span>
                     {activeGroupInfo?.ownerUserID ? (
-                      <span className="rounded-full bg-white/10 px-2.5 py-1 text-purple-100">
+                      <span className="rounded-full bg-white/10 px-2.5 py-1 text-slate-200/82">
                         Owner: {activeGroupInfo.ownerUserID}
                       </span>
                     ) : null}
@@ -2222,22 +2222,22 @@ export default function ChatPage() {
                 </div>
 
                 {isCurrentGroupOwner && (
-                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="premium-card space-y-3 rounded-[1.45rem] p-3">
                     <div className="text-sm font-semibold text-white">
                       Edit group
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-purple-200">Group name</div>
+                      <div className="text-xs text-slate-300/82">Group name</div>
                       <div className="flex gap-2">
                         <input
                           value={groupNameInput}
                           onChange={(e) => setGroupNameInput(e.target.value)}
                           placeholder="Enter group name"
-                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                          className="flex-1 rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                         />
                         <button
                           type="button"
-                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                           onClick={() => handleUpdateGroupName(active.id)}
                         >
                           Save
@@ -2245,34 +2245,34 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-purple-200">Group notice</div>
+                      <div className="text-xs text-slate-300/82">Group notice</div>
                       <textarea
                         value={groupNoticeInput}
                         onChange={(e) => setGroupNoticeInput(e.target.value)}
                         rows={3}
                         placeholder="Share a short group description or notice"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="w-full rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                       />
                       <button
                         type="button"
-                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => handleUpdateGroupNotice(active.id)}
                       >
                         Update notice
                       </button>
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-purple-200">Avatar URL</div>
+                      <div className="text-xs text-slate-300/82">Avatar URL</div>
                       <div className="flex gap-2">
                         <input
                           value={groupAvatarInput}
                           onChange={(e) => setGroupAvatarInput(e.target.value)}
                           placeholder="https://..."
-                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                          className="flex-1 rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                         />
                         <button
                           type="button"
-                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                          className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                           onClick={() => handleUpdateGroupAvatar(active.id)}
                         >
                           Update
@@ -2282,7 +2282,7 @@ export default function ChatPage() {
                   </div>
                 )}
 
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                <div className="premium-card rounded-[1.45rem] p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-sm font-semibold text-white">
                       Group members
@@ -2293,7 +2293,7 @@ export default function ChatPage() {
                       </span>
                     )}
                   </div>
-                  <div className="scrollbar-hidden max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                  <div className="soft-scrollbar max-h-52 space-y-1.5 overflow-y-auto pr-1">
                     {activeGroupMembers.map((m) => (
                       (() => {
                         const memberUserID = m?.userID || m?.memberID || "";
@@ -2316,14 +2316,14 @@ export default function ChatPage() {
                         return (
                           <div
                             key={memberUserID || Math.random()}
-                            className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-xs text-purple-100"
+                            className="rounded-[1.2rem] border border-white/10 bg-black/10 px-3 py-2 text-xs text-slate-200/82"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="truncate font-medium text-white">
                                   {m?.userName || m?.memberNickname || memberUserID || "member"}
                                 </div>
-                                <div className="truncate text-[11px] text-purple-200">
+                                <div className="truncate text-[11px] text-slate-300/82">
                                   {memberUserID}
                                 </div>
                               </div>
@@ -2333,7 +2333,7 @@ export default function ChatPage() {
                                     ? "bg-amber-500/20 text-amber-100"
                                     : memberRole === GROUP_ROLE.Admin
                                       ? "bg-cyan-400/20 text-cyan-100"
-                                      : "bg-white/10 text-purple-100"
+                                      : "bg-white/10 text-slate-200/82"
                                 }`}
                               >
                                 {getGroupRoleLabel(memberRole)}
@@ -2389,7 +2389,7 @@ export default function ChatPage() {
                       })()
                     ))}
                     {!activeGroupMembers.length && (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-3 py-4 text-center text-xs text-purple-200">
+                      <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-black/10 px-3 py-4 text-center text-xs text-slate-300/82">
                         Group members will appear here after the list syncs.
                       </div>
                     )}
@@ -2397,21 +2397,21 @@ export default function ChatPage() {
                 </div>
 
                 {isCurrentGroupAdmin && (
-                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="premium-card space-y-3 rounded-[1.45rem] p-3">
                     <div className="text-sm font-semibold text-white">
                       Manage members
                     </div>
-                    <div className="text-xs text-purple-200">Add members</div>
+                    <div className="text-xs text-slate-300/82">Add members</div>
                     <div className="flex gap-2">
                       <input
                         value={groupInviteInput}
                         onChange={(e) => setGroupInviteInput(e.target.value)}
                         placeholder="email/userIDs, comma separated"
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="flex-1 rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                       />
                       <button
                         type="button"
-                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => {
                           addMembersToGroup(active.id, groupInviteInput.split(","));
                           setGroupInviteInput("");
@@ -2420,17 +2420,17 @@ export default function ChatPage() {
                         Add
                       </button>
                     </div>
-                    <div className="text-xs text-purple-200">Remove members</div>
+                    <div className="text-xs text-slate-300/82">Remove members</div>
                     <div className="flex gap-2">
                       <input
                         value={groupRemoveInput}
                         onChange={(e) => setGroupRemoveInput(e.target.value)}
                         placeholder="email/userIDs, comma separated"
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="flex-1 rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                       />
                       <button
                         type="button"
-                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => {
                           removeMembersFromGroup(active.id, groupRemoveInput.split(","));
                           setGroupRemoveInput("");
@@ -2443,11 +2443,11 @@ export default function ChatPage() {
                 )}
 
                 {isCurrentGroupOwner && (
-                  <div className="space-y-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="premium-card space-y-3 rounded-[1.45rem] p-3">
                     <div className="text-sm font-semibold text-white">
                       Ownership
                     </div>
-                    <div className="text-xs text-purple-200">
+                    <div className="text-xs text-slate-300/82">
                       Transfer ownership before leaving if you want another member to manage the group.
                     </div>
                     <div className="flex gap-2">
@@ -2455,11 +2455,11 @@ export default function ChatPage() {
                         value={groupTransferOwnerInput}
                         onChange={(e) => setGroupTransferOwnerInput(e.target.value)}
                         placeholder="new owner email/userID"
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400/60"
+                        className="flex-1 rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                       />
                       <button
                         type="button"
-                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/15"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => handleTransferGroupOwner(active.id)}
                       >
                         Transfer
@@ -2468,9 +2468,9 @@ export default function ChatPage() {
                   </div>
                 )}
 
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+                <div className="premium-card rounded-[1.45rem] p-3">
                   <div className="text-sm font-semibold text-white">Group actions</div>
-                  <div className="mt-1 text-xs text-purple-200">
+                  <div className="mt-1 text-xs text-slate-300/82">
                     Leave the group from this device. Owners may need to transfer ownership first depending on Zego group rules.
                   </div>
                   <button
@@ -2482,7 +2482,7 @@ export default function ChatPage() {
                   </button>
                   {isCurrentGroupOwner && (
                     <>
-                      <div className="mt-3 text-xs text-purple-200">
+                      <div className="mt-3 text-xs text-slate-300/82">
                         Dismiss permanently closes the group for everyone.
                       </div>
                       <button
@@ -2497,7 +2497,7 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
-            <div className="text-xs text-purple-200">
+            <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-black/10 px-3 py-3 text-xs text-slate-300/82">
               Tip: Long-press or click a message to react, reply, forward, or delete.
             </div>
           </div>

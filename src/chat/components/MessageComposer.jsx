@@ -14,6 +14,45 @@ const EMOJIS = [
 ];
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
+const iconButtonClass =
+  "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] text-slate-100 transition hover:-translate-y-[1px] hover:bg-white/[0.09]";
+
+const SmileIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5" aria-hidden="true">
+    <path
+      d="M13.75 8h.008M6.25 8h.008M6.5 12.25c.7.83 1.85 1.35 3.5 1.35s2.8-.52 3.5-1.35M17 10a7 7 0 1 1-14 0a7 7 0 0 1 14 0Z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const PaperclipIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5" aria-hidden="true">
+    <path
+      d="m7.25 10.75 4.88-4.88a2.25 2.25 0 1 1 3.18 3.18l-6.36 6.36a3.25 3.25 0 0 1-4.6-4.6l6-6"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5" aria-hidden="true">
+    <path
+      d="M17 3 9.3 10.7M17 3l-5.2 14-2.2-6.6L3 8.2 17 3Z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const formatBytes = (bytes) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
@@ -165,21 +204,21 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
   return (
     <form
       onSubmit={submit}
-      className="border-t border-white/10 bg-white/5 px-3 pb-3 pt-3 backdrop-blur sm:px-6 sm:pb-5"
+      className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(8,15,28,0.18),rgba(8,15,28,0.38))] px-3 pb-3 pt-3 backdrop-blur sm:px-6 sm:pb-5"
     >
       {attachment && (
-        <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white">
+        <div className="premium-card mb-3 rounded-[1.4rem] px-4 py-3 text-sm text-white">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate font-medium">{attachment.name}</div>
-              <div className="text-xs text-purple-200">
+              <div className="truncate font-semibold">{attachment.name}</div>
+              <div className="mt-1 text-xs text-slate-300/80">
                 {attachment.type || "file"} | {formatBytes(attachment.size)}
               </div>
             </div>
             <button
               type="button"
               onClick={clearAttachment}
-              className="rounded-lg px-2 py-1 text-xs text-red-200 hover:bg-red-500/10"
+              className="rounded-xl px-2 py-1 text-xs text-red-200 transition hover:bg-red-500/10"
             >
               Remove
             </button>
@@ -188,31 +227,35 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
             <img
               src={attachment.previewUrl}
               alt={attachment.name}
-              className="mt-3 max-h-40 rounded-xl border border-white/10 object-cover"
+              className="mt-3 max-h-44 rounded-[1.1rem] border border-white/10 object-cover"
             />
           )}
         </div>
       )}
 
-      {error && <div className="mb-3 text-sm text-red-200">{error}</div>}
+      {error && (
+        <div className="mb-3 rounded-[1.15rem] border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          {error}
+        </div>
+      )}
 
-      <div className="flex items-end gap-2 sm:gap-3">
+      <div className="premium-card flex items-end gap-2 rounded-[1.75rem] px-3 py-3 sm:gap-3 sm:px-4">
         <div className="relative" ref={pickerRef}>
           <button
             type="button"
-            className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm transition hover:bg-white/10 sm:h-11 sm:w-11"
+            className={iconButtonClass}
             aria-label="Add emoji"
             onClick={() => setPickerOpen((open) => !open)}
           >
-            {"\u{1F642}"}
+            <SmileIcon />
           </button>
           {pickerOpen && (
-            <div className="absolute bottom-14 left-0 z-20 grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl">
+            <div className="premium-panel absolute bottom-14 left-0 z-20 grid grid-cols-4 gap-2 rounded-[1.4rem] p-3 shadow-2xl">
               {EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  className="rounded-xl bg-white/5 px-2 py-2 text-xl hover:bg-white/10"
+                  className="rounded-xl bg-white/5 px-2 py-2 text-xl transition hover:bg-white/10"
                   onClick={() => insertEmoji(emoji)}
                 >
                   {emoji}
@@ -224,11 +267,11 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
 
         <button
           type="button"
-          className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm transition hover:bg-white/10 sm:h-11 sm:w-11"
+          className={iconButtonClass}
           aria-label="Attach file"
           onClick={() => fileInputRef.current?.click()}
         >
-          {"\u{1F4CE}"}
+          <PaperclipIcon />
         </button>
 
         <input
@@ -238,7 +281,7 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
           onChange={handleAttachmentSelect}
         />
 
-        <div className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-2">
+        <div className="flex min-h-[3.25rem] flex-1 items-end rounded-[1.4rem] border border-white/10 bg-black/18 px-4 py-3">
           <textarea
             ref={textareaRef}
             value={text}
@@ -251,16 +294,17 @@ export default function MessageComposer({ onSend, disabled, onTyping }) {
             disabled={disabled}
             rows={1}
             placeholder={disabled ? "Connecting..." : "Type a message or add a file..."}
-            className="max-h-35 w-full resize-none overflow-y-auto bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+            className="soft-scrollbar max-h-36 w-full resize-none overflow-y-auto bg-transparent text-[0.95rem] leading-7 text-white placeholder:text-slate-400/90 outline-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={disabled || (!text.trim() && !attachment)}
-          className="h-10 shrink-0 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/30 transition hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50 sm:h-11 sm:px-4"
+          className="inline-flex h-12 shrink-0 items-center gap-2 rounded-[1.2rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_42%,#2563eb_100%)] px-4 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_22px_40px_rgba(14,165,233,0.28)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Send
+          <SendIcon />
+          <span className="hidden sm:inline">Send</span>
         </button>
       </div>
     </form>

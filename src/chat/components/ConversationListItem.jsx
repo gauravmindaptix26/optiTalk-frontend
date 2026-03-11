@@ -1,12 +1,4 @@
 import React from "react";
-import { ZIMMessageType } from "../zego/zimConstants";
-
-const previewText = (message) => {
-  if (!message) return "";
-  if (message.type === ZIMMessageType.Text) return message.message;
-  return "New message";
-};
-
 const ConversationListItem = ({
   title,
   subtitle,
@@ -42,4 +34,3 @@ const ConversationListItem = ({
 };
 
 export default ConversationListItem;
-export { previewText };
