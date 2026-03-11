@@ -9,7 +9,7 @@ export default function ConversationList({
   presenceByUserID = {},
 }) {
   return (
-    <div className="soft-scrollbar h-full space-y-2.5 overflow-y-auto pr-1">
+    <div className="space-y-2.5">
       {conversations.map((conversation) => {
         const isActive =
           active &&

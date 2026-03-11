@@ -131,7 +131,7 @@ export default function Sidebar({
     (groupSearchResults?.length || 0) === 0;
 
   return (
-    <div className="stealth-scroll flex h-full min-h-0 w-full touch-pan-y flex-col gap-3 overflow-x-hidden overflow-y-auto pr-1 sm:gap-4">
+    <div className="flex min-h-full w-full flex-col gap-3 sm:gap-4 lg:h-auto lg:min-h-full">
       <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.24),rgba(59,130,246,0.12),rgba(12,20,34,0.22))] p-3.5 shadow-[0_24px_60px_rgba(2,8,23,0.3)] sm:rounded-[1.9rem] sm:p-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(94,234,212,0.1),transparent_28%)]" />
         <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -411,7 +411,7 @@ export default function Sidebar({
         </form>
       </div>
 
-      <div className="premium-card flex min-h-[18rem] shrink-0 flex-col overflow-hidden rounded-[1.45rem] p-3 lg:min-h-0 lg:flex-1 sm:rounded-[1.7rem] sm:p-4">
+      <div className="premium-card flex min-h-[18rem] shrink-0 flex-col overflow-hidden rounded-[1.45rem] p-3 sm:rounded-[1.7rem] sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100/70">
             Conversations
@@ -420,7 +420,7 @@ export default function Sidebar({
             {conversations?.length || 0} active
           </div>
         </div>
-        <div className="min-h-0 flex-1">
+        <div>
           <ConversationList
             conversations={conversations}
             active={active}

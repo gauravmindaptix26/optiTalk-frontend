@@ -36,11 +36,11 @@ export default function ChatLayout({
           />
 
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-[92vw] max-w-sm flex-col gap-3 transform p-1.5 transition duration-300 sm:p-2 lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:transform-none lg:p-0 xl:w-[360px] ${
+            className={`stealth-scroll fixed inset-y-0 left-0 z-50 flex w-[92vw] max-w-sm touch-pan-y flex-col gap-3 overflow-x-hidden overflow-y-auto p-1.5 transition duration-300 sm:p-2 lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:transform-none lg:p-0 xl:w-[360px] ${
               sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <div className="premium-panel mesh-accent flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-[1.55rem] p-3 sm:gap-4 sm:rounded-[2rem] sm:p-4">
+            <div className="premium-panel mesh-accent flex min-h-full flex-col gap-3 rounded-[1.55rem] p-3 sm:gap-4 sm:rounded-[2rem] sm:p-4 lg:h-full lg:min-h-0">
               {sidebar}
             </div>
           </aside>
