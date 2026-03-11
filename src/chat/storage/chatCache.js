@@ -3,6 +3,22 @@ import { ZIMMessageType } from "../zego/zimConstants";
 const PREFIX = "zego:chatCache:v1:";
 const MAX_MESSAGES = 200;
 
+const safeGetItem = (key) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+};
+
 const safeParse = (raw) => {
   try {
     return JSON.parse(raw);
@@ -42,7 +58,7 @@ export const deserializeMessages = (data) =>
     }));
 
 export function loadCachedMessages({ conversationType, conversationID }) {
-  const raw = localStorage.getItem(
+  const raw = safeGetItem(
     getConversationCacheKey({ conversationType, conversationID }),
   );
   const parsed = safeParse(raw);
@@ -55,7 +71,7 @@ export function saveCachedMessages({ conversationType, conversationID, messages 
     updatedAt: Date.now(),
     messages: serializeMessages(messages),
   };
-  localStorage.setItem(
+  safeSetItem(
     getConversationCacheKey({ conversationType, conversationID }),
     JSON.stringify(payload),
   );

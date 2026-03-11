@@ -3,11 +3,14 @@ import React from "react";
 class RouteErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: "" };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      errorMessage: error?.message || "Unknown error",
+    };
   }
 
   componentDidCatch(error) {
@@ -30,6 +33,9 @@ class RouteErrorBoundary extends React.Component {
           </div>
           <div className="mt-2 text-sm text-slate-300/82">
             Try going back to the login page and opening chat again.
+          </div>
+          <div className="mt-3 break-words rounded-xl border border-white/10 bg-black/12 px-3 py-2 text-xs text-cyan-100/72">
+            {this.state.errorMessage}
           </div>
           <div className="mt-5 flex justify-center gap-3">
             <button

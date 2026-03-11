@@ -1,5 +1,22 @@
 const PREFIX = "profile:v1:";
 
+const safeGetItem = (key) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const safeParse = (raw) => {
   try {
     return JSON.parse(raw);
@@ -13,7 +30,7 @@ export function getProfileStorageKey(userKey) {
 }
 
 export function loadProfile(userKey) {
-  const raw = localStorage.getItem(getProfileStorageKey(userKey));
+  const raw = safeGetItem(getProfileStorageKey(userKey));
   const parsed = safeParse(raw);
   if (!parsed) return null;
 
@@ -32,7 +49,7 @@ export function saveProfile(userKey, profile) {
     photo: profile.photo ?? "",
     updatedAt: Date.now(),
   };
-  localStorage.setItem(getProfileStorageKey(userKey), JSON.stringify(payload));
+  safeSetItem(getProfileStorageKey(userKey), JSON.stringify(payload));
   return payload;
 }
 
