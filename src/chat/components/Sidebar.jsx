@@ -100,6 +100,35 @@ const parseMemberEntries = (value) =>
 const getMemberValue = (result) =>
   result?.userID || result?.userId || result?.email || result?.name || "";
 
+const getCommittedGroupMembers = (value, results = []) => {
+  const entries = parseMemberEntries(value);
+  if (!entries.length) return [];
+
+  const exactMatches = new Set(
+    (results || [])
+      .flatMap((result) => [
+        result?.userID,
+        result?.userId,
+        result?.email,
+        result?.name,
+      ])
+      .filter(Boolean)
+      .map((entry) => String(entry).trim().toLowerCase()),
+  );
+
+  return entries.filter((entry) => {
+    const normalized = entry.toLowerCase();
+    return (
+      exactMatches.has(normalized) ||
+      entry.includes("@") ||
+      entry.includes("_") ||
+      entry.includes(".") ||
+      entry.includes("-") ||
+      /^\d+$/.test(entry)
+    );
+  });
+};
+
 export default function Sidebar({
   profile,
   onEditProfile,
@@ -140,7 +169,10 @@ export default function Sidebar({
     !groupSearchLoading &&
     !groupSearchError &&
     (groupSearchResults?.length || 0) === 0;
-  const typedGroupMembers = parseMemberEntries(groupMembersValue);
+  const typedGroupMembers = getCommittedGroupMembers(
+    groupMembersValue,
+    groupSearchResults,
+  );
   const pendingGroupMembers = Array.from(
     new Set([...selectedGroupMembers, ...typedGroupMembers]),
   );

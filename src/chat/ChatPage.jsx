@@ -105,7 +105,28 @@ const formatZimUserError = (userError) => {
     return `${id} (user needs to login first)`;
   }
 
+  if (code === "51102" || reason.includes("51102")) {
+    return `${id} (invalid member or user has not logged in yet)`;
+  }
+
   return reason ? `${id} (${reason})` : String(id);
+};
+
+const mergeSearchResults = (primary = [], fallback = []) => {
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of [...primary, ...fallback]) {
+    if (!item) continue;
+    const key = String(
+      item.userID || item.userId || item.email || item.name || "",
+    ).trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+
+  return merged;
 };
 
 const mergeUniqueMessages = (previous, incoming) => {
@@ -383,6 +404,13 @@ export default function ChatPage() {
   const profilePhoto = profile?.photo || (user?.picture ? String(user.picture) : "");
 
   const isConnected = status.phase === "connected";
+  const setOperationError = (message) => {
+    setStatus((prev) => ({
+      phase: prev.phase === "connected" ? "connected" : "error",
+      error: message,
+    }));
+  };
+
   const messageSearchResults = useMemo(() => {
     const query = messageSearchInput.trim().toLowerCase();
     if (!query) return [];
@@ -1496,15 +1524,14 @@ export default function ChatPage() {
       await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
 
       if (inviteFailures.length) {
-        setStatus({
-          phase: "error",
-          error: `Group created, but some members could not be added: ${inviteFailures.join(", ")}`,
-        });
+        setOperationError(
+          `Group created, but some members could not be added: ${inviteFailures.join(", ")}`,
+        );
       } else {
         setStatus({ phase: "connected", error: "" });
       }
     } catch (e) {
-      setStatus({ phase: "error", error: e?.message || "Group creation failed" });
+      setOperationError(e?.message || "Group creation failed");
     }
   };
 
@@ -1689,7 +1716,7 @@ export default function ChatPage() {
       ),
     );
     if (!ids.length) {
-      setStatus({ phase: "error", error: "Add members failed: no valid userIDs" });
+      setOperationError("Add members failed: no valid userIDs");
       return;
     }
     try {
@@ -1736,10 +1763,9 @@ export default function ChatPage() {
       const errors = getZimErrorUsers(resp);
 
       if (errors.length) {
-        setStatus({
-          phase: "error",
-          error: `Add members failed: ${errors.map(formatZimUserError).join(", ")}`,
-        });
+        setOperationError(
+          `Add members failed: ${errors.map(formatZimUserError).join(", ")}`,
+        );
       } else {
         setStatus({ phase: "connected", error: "" });
       }
@@ -1747,7 +1773,7 @@ export default function ChatPage() {
       await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
     } catch (e) {
       console.error("[Group] Add members flow failed", e);
-      setStatus({ phase: "error", error: e?.message || "Add members failed" });
+      setOperationError(e?.message || "Add members failed");
     }
   };
 
@@ -1774,7 +1800,7 @@ export default function ChatPage() {
       await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
       setStatus({ phase: "connected", error: "" });
     } catch (e) {
-      setStatus({ phase: "error", error: e?.message || "Remove members failed" });
+      setOperationError(e?.message || "Remove members failed");
     }
   };
 
@@ -1923,6 +1949,27 @@ export default function ChatPage() {
       setter([]);
       return;
     }
+
+    const localMatches = conversations
+      .filter((conversation) => conversation.type === ZIMConversationType.Peer)
+      .filter((conversation) => {
+        const title = String(conversation.title || "").toLowerCase();
+        const id = String(conversation.id || "").toLowerCase();
+        return title.includes(q.toLowerCase()) || id.includes(q.toLowerCase());
+      })
+      .map((conversation) => {
+        const presence = presenceByUserID[conversation.id];
+        return {
+          userID: conversation.id,
+          userId: conversation.id,
+          name: conversation.title || conversation.id,
+          email: "",
+          picture: "",
+          lastSeen: presence?.lastSeen || 0,
+          presence: presence?.presence || "unknown",
+        };
+      });
+
     try {
       if (abortRef.current) {
         abortRef.current.abort();
@@ -1971,11 +2018,11 @@ export default function ChatPage() {
         throw new Error(`Search failed (${res.status}): ${text}`);
       }
       const data = await res.json();
-      setter(data?.results ?? []);
+      setter(mergeSearchResults(data?.results ?? [], localMatches));
     } catch (e) {
       if (e?.name === "AbortError") return;
       setErr(e?.message || "Search failed");
-      setter([]);
+      setter(localMatches);
     } finally {
       setLoading(false);
       abortRef.current = null;
