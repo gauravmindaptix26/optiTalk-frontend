@@ -8,7 +8,15 @@ import Auth0ProviderWithNavigate from "./auth/Auth0ProviderWithNavigate.jsx";
 const domain = import.meta.env.VITE_AUTH0_DOMAIN;
 const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
 const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-const redirectUri = import.meta.env.VITE_AUTH0_REDIRECT_URI || window.location.origin;
+const configuredRedirectUri = import.meta.env.VITE_AUTH0_REDIRECT_URI;
+const currentOrigin = window.location.origin;
+const isLocalOrigin =
+  currentOrigin.includes("localhost") || currentOrigin.includes("127.0.0.1");
+const redirectUri =
+  configuredRedirectUri &&
+  (isLocalOrigin || configuredRedirectUri.startsWith(currentOrigin))
+    ? configuredRedirectUri
+    : `${currentOrigin}/chat`;
 
 if (!domain) {
   throw new Error("Missing VITE_AUTH0_DOMAIN in frontend/.env");
