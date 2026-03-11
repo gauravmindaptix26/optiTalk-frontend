@@ -91,6 +91,15 @@ const sectionShell =
 const inputShell =
   "w-full rounded-[1.15rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-400/90 outline-none transition focus:border-cyan-300/30 focus:bg-black/28 focus:ring-2 focus:ring-cyan-300/20";
 
+const parseMemberEntries = (value) =>
+  String(value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const getMemberValue = (result) =>
+  result?.userID || result?.userId || result?.email || result?.name || "";
+
 export default function Sidebar({
   profile,
   onEditProfile,
@@ -113,7 +122,9 @@ export default function Sidebar({
   presenceByUserID,
 }) {
   const [searchValue, setSearchValue] = useState("");
+  const [groupNameValue, setGroupNameValue] = useState("");
   const [groupMembersValue, setGroupMembersValue] = useState("");
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
 
   const displayName =
     profile?.displayName?.trim() ||
@@ -129,6 +140,10 @@ export default function Sidebar({
     !groupSearchLoading &&
     !groupSearchError &&
     (groupSearchResults?.length || 0) === 0;
+  const typedGroupMembers = parseMemberEntries(groupMembersValue);
+  const pendingGroupMembers = Array.from(
+    new Set([...selectedGroupMembers, ...typedGroupMembers]),
+  );
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3 sm:gap-4">
@@ -308,15 +323,13 @@ export default function Sidebar({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const name = e.target.elements.groupName?.value?.trim();
-              const membersRaw = groupMembersValue || "";
-              const members = membersRaw
-                .split(",")
-                .map((member) => member.trim())
-                .filter(Boolean);
+              const name = groupNameValue.trim();
+              const members = pendingGroupMembers;
               if (name) onCreateGroup?.({ name, members });
-              e.target.reset();
+              setGroupNameValue("");
               setGroupMembersValue("");
+              setSelectedGroupMembers([]);
+              onGroupSearch?.("");
             }}
             className="space-y-3"
           >
@@ -324,7 +337,9 @@ export default function Sidebar({
               name="groupName"
               placeholder="Group name"
               className={inputShell}
+              value={groupNameValue}
               disabled={!isConnected}
+              onChange={(e) => setGroupNameValue(e.target.value)}
             />
             <div className="relative">
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -332,7 +347,7 @@ export default function Sidebar({
               </span>
               <input
                 name="groupMembers"
-                placeholder="Members (emails/userIDs, comma separated)"
+                placeholder="Search members by email or userID"
                 value={groupMembersValue}
                 className={`${inputShell} pl-11`}
                 disabled={!isConnected}
@@ -342,6 +357,25 @@ export default function Sidebar({
                 }}
               />
             </div>
+            {!!selectedGroupMembers.length && (
+              <div className="flex flex-wrap gap-2">
+                {selectedGroupMembers.map((member) => (
+                  <button
+                    key={member}
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full border border-cyan-300/18 bg-cyan-400/10 px-3 py-1.5 text-[11px] text-cyan-50 transition hover:bg-cyan-400/16"
+                    onClick={() =>
+                      setSelectedGroupMembers((current) =>
+                        current.filter((item) => item !== member),
+                      )
+                    }
+                  >
+                    <span className="max-w-[10rem] truncate">{member}</span>
+                    <span className="text-cyan-100/70">x</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="soft-scrollbar max-h-32 space-y-2 overflow-y-auto pr-1 sm:max-h-44">
               {groupSearchLoading &&
                 Array.from({ length: 2 }).map((_, index) => (
@@ -356,23 +390,25 @@ export default function Sidebar({
                 !groupSearchError &&
                 (groupSearchResults || []).map((result) => {
                   const presenceBadge = getPresenceBadge(result.presence);
+                  const memberValue = getMemberValue(result);
+                  const isSelected = selectedGroupMembers.includes(memberValue);
 
                   return (
                     <button
-                      key={result.userID || result.userId || result.email || result.name}
+                      key={memberValue}
                       type="button"
-                      className="premium-card w-full rounded-[1.2rem] px-3 py-3 text-left text-xs text-white transition hover:border-cyan-300/20 hover:bg-white/[0.08]"
+                      className={`premium-card w-full rounded-[1.2rem] px-3 py-3 text-left text-xs text-white transition hover:border-cyan-300/20 hover:bg-white/[0.08] ${
+                        isSelected ? "border-cyan-300/28 bg-cyan-400/10" : ""
+                      }`}
                       onClick={() => {
-                        const value =
-                          result.userID ||
-                          result.userId ||
-                          result.email ||
-                          result.name;
-                        if (!value) return;
-
-                        setGroupMembersValue((current) =>
-                          current ? `${current}, ${value}` : value,
+                        if (!memberValue) return;
+                        setSelectedGroupMembers((current) =>
+                          current.includes(memberValue)
+                            ? current.filter((item) => item !== memberValue)
+                            : [...current, memberValue],
                         );
+                        setGroupMembersValue("");
+                        onGroupSearch?.("");
                       }}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -394,7 +430,7 @@ export default function Sidebar({
             </div>
             {!groupSearchLoading && !groupSearchError && !groupMembersValue.trim() && (
               <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-black/12 px-3 py-3 text-xs leading-5 text-slate-300/82">
-                Type member emails or user IDs, or tap search results to fill the field.
+                Search and tap users to add them like WhatsApp, or type emails/userIDs separated by commas.
               </div>
             )}
             {showGroupSearchEmpty && (
@@ -405,7 +441,7 @@ export default function Sidebar({
             <button
               type="submit"
               className="w-full rounded-[1.15rem] bg-[linear-gradient(135deg,#14b8a6_0%,#0ea5e9_40%,#2563eb_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(14,165,233,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(14,165,233,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!isConnected}
+              disabled={!isConnected || !groupNameValue.trim() || !pendingGroupMembers.length}
             >
               Create group
             </button>

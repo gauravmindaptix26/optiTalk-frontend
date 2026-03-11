@@ -64,6 +64,50 @@ const messageIdentity = (message) =>
   message?.localMessageID ??
   `${message?.timestamp ?? "0"}:${message?.message ?? ""}`;
 
+const splitMemberEntries = (entries = []) =>
+  (Array.isArray(entries) ? entries : [entries])
+    .flatMap((entry) => String(entry ?? "").split(","))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const getUniqueMemberIDs = (entries, selfUserID = "") =>
+  Array.from(
+    new Set(
+      splitMemberEntries(entries)
+        .map(toZegoUserID)
+        .filter(Boolean)
+        .filter((id) => id !== selfUserID),
+    ),
+  );
+
+const getZimErrorUsers = (resp) =>
+  resp?.errorUserList || resp?.errorInviteeList || resp?.errorList || [];
+
+const formatZimUserError = (userError) => {
+  if (!userError) return "unknown";
+
+  const id =
+    userError.userID ||
+    userError.memberID ||
+    userError.id ||
+    userError.invitee ||
+    "unknown";
+  const code = String(userError.code || userError.errorCode || "");
+  const reason = String(
+    userError.reason ||
+      userError.message ||
+      userError.errorMessage ||
+      userError.errorMsg ||
+      "",
+  ).trim();
+
+  if (code === "6000001" || reason.includes("6000001")) {
+    return `${id} (user needs to login first)`;
+  }
+
+  return reason ? `${id} (${reason})` : String(id);
+};
+
 const mergeUniqueMessages = (previous, incoming) => {
   const next = [...(previous ?? [])];
   const seen = new Set(
@@ -1272,7 +1316,7 @@ export default function ChatPage() {
     await setActiveConversation(next);
   };
 
-  const createGroup = async ({ name, members }) => {
+  const _createGroup = async ({ name, members }) => {
     const cleanName = (name || "").trim();
     if (!cleanName) return;
     if (!isConnected) {
@@ -1280,15 +1324,7 @@ export default function ChatPage() {
       return;
     }
     try {
-      const allIds = Array.from(
-        new Set(
-          (members || [])
-            .map(toZegoUserID)
-            .filter(Boolean)
-            .concat(userID),
-        ),
-      );
-      const invitees = allIds.filter((id) => id !== userID);
+      const invitees = getUniqueMemberIDs(members, userID);
       
       // ✅ VALIDATION: Warn user if they're trying to add no one or only themselves
       if (invitees.length === 0) {
@@ -1377,6 +1413,92 @@ export default function ChatPage() {
         setStatus({
           phase: "error",
           error: `Group created but invites failed: ${inviteFailures.join(", ")}`,
+        });
+      } else {
+        setStatus({ phase: "connected", error: "" });
+      }
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Group creation failed" });
+    }
+  };
+
+  const createGroupFlow = async ({ name, members }) => {
+    const cleanName = (name || "").trim();
+    if (!cleanName) return;
+    if (!isConnected) {
+      setStatus({ phase: "error", error: "Connect first, then create a group" });
+      return;
+    }
+
+    try {
+      const invitees = getUniqueMemberIDs(members, userID);
+      if (!invitees.length) {
+        setStatus({
+          phase: "error",
+          error: "Select at least one valid member before creating the group.",
+        });
+        return;
+      }
+
+      const result = await createGroupZim({
+        groupName: cleanName,
+        userIDs: invitees,
+      });
+
+      const groupID =
+        result?.groupInfo?.groupID ||
+        result?.groupID ||
+        result?.data?.groupID ||
+        `group_${Date.now()}`;
+
+      const newConv = {
+        id: groupID,
+        type: ZIMConversationType.Group,
+        title: result?.groupInfo?.groupName || cleanName,
+        subtitle: "",
+        unreadCount: 0,
+        lastMessage: null,
+      };
+
+      setGroupAdmins((prev) => ({ ...prev, [groupID]: userID }));
+      setConversations((prev) => {
+        const exists = prev.some(
+          (conversation) =>
+            conversation.id === newConv.id && conversation.type === newConv.type,
+        );
+        return exists ? prev : [newConv, ...prev];
+      });
+
+      await setActiveConversation(newConv);
+      await ensureGroupJoined(groupID);
+
+      let inviteFailures = getZimErrorUsers(result).map(formatZimUserError);
+      if (inviteFailures.length) {
+        const failedIDs = getZimErrorUsers(result)
+          .map((item) => item?.userID || item?.memberID || item?.id || item?.invitee)
+          .filter(Boolean);
+
+        for (const failedID of failedIDs) {
+          try {
+            const retryResp = await inviteToGroupZim({ groupID, userIDs: [failedID] });
+            const retryErrors = getZimErrorUsers(retryResp);
+            if (!retryErrors.length) {
+              inviteFailures = inviteFailures.filter(
+                (entry) => entry !== failedID && !entry.startsWith(`${failedID} (`),
+              );
+            }
+          } catch (retryError) {
+            console.error(`[Group] Retry invite failed for "${failedID}"`, retryError);
+          }
+        }
+      }
+
+      await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
+
+      if (inviteFailures.length) {
+        setStatus({
+          phase: "error",
+          error: `Group created, but some members could not be added: ${inviteFailures.join(", ")}`,
         });
       } else {
         setStatus({ phase: "connected", error: "" });
@@ -1556,7 +1678,7 @@ export default function ChatPage() {
     await markActiveAsRead();
   };
 
-  const addMembersToGroup = async (groupID, entries) => {
+  const _addMembersToGroup = async (groupID, entries) => {
     if (!groupID) return;
     const ids = Array.from(
       new Set(
@@ -1600,7 +1722,36 @@ export default function ChatPage() {
     }
   };
 
-  const removeMembersFromGroup = async (groupID, entries) => {
+  const addMembersToGroupFlow = async (groupID, entries) => {
+    if (!groupID) return;
+    const ids = getUniqueMemberIDs(entries, userID);
+    if (!ids.length) {
+      setStatus({ phase: "error", error: "Add members failed: no valid userIDs" });
+      return;
+    }
+
+    try {
+      await ensureGroupJoined(groupID);
+      const resp = await inviteToGroupZim({ groupID, userIDs: ids });
+      const errors = getZimErrorUsers(resp);
+
+      if (errors.length) {
+        setStatus({
+          phase: "error",
+          error: `Add members failed: ${errors.map(formatZimUserError).join(", ")}`,
+        });
+      } else {
+        setStatus({ phase: "connected", error: "" });
+      }
+
+      await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
+    } catch (e) {
+      console.error("[Group] Add members flow failed", e);
+      setStatus({ phase: "error", error: e?.message || "Add members failed" });
+    }
+  };
+
+  const _removeMembersFromGroup = async (groupID, entries) => {
     if (!groupID) return;
     const ids = (entries || []).map(toZegoUserID).filter(Boolean);
     if (!ids.length) return;
@@ -1608,6 +1759,20 @@ export default function ChatPage() {
       await removeFromGroupZim({ groupID, userIDs: ids });
       await loadGroupMembers(groupID);
       await loadGroupInfo(groupID);
+    } catch (e) {
+      setStatus({ phase: "error", error: e?.message || "Remove members failed" });
+    }
+  };
+
+  const removeMembersFromGroupFlow = async (groupID, entries) => {
+    if (!groupID) return;
+    const ids = getUniqueMemberIDs(entries);
+    if (!ids.length) return;
+
+    try {
+      await removeFromGroupZim({ groupID, userIDs: ids });
+      await Promise.all([loadGroupMembers(groupID), loadGroupInfo(groupID)]);
+      setStatus({ phase: "connected", error: "" });
     } catch (e) {
       setStatus({ phase: "error", error: e?.message || "Remove members failed" });
     }
@@ -1990,7 +2155,7 @@ export default function ChatPage() {
               setSidebarOpen(false);
             }}
           onStartNewChat={startNewChat}
-          onCreateGroup={createGroup}
+          onCreateGroup={createGroupFlow}
           onGroupSearch={handleGroupSearch}
           groupSearchResults={groupSearchResults}
           groupSearchLoading={groupSearchLoading}
@@ -2427,7 +2592,7 @@ export default function ChatPage() {
                                     type="button"
                                     className="rounded-full border border-red-400/25 bg-red-500/10 px-2.5 py-1 text-[10px] font-medium text-red-100 transition hover:bg-red-500/15"
                                     onClick={() =>
-                                      removeMembersFromGroup(active.id, [memberUserID])
+                                      removeMembersFromGroupFlow(active.id, [memberUserID])
                                     }
                                   >
                                     Remove member
@@ -2464,7 +2629,7 @@ export default function ChatPage() {
                         type="button"
                         className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => {
-                          addMembersToGroup(active.id, groupInviteInput.split(","));
+                          addMembersToGroupFlow(active.id, groupInviteInput.split(","));
                           setGroupInviteInput("");
                         }}
                       >
@@ -2483,7 +2648,7 @@ export default function ChatPage() {
                         type="button"
                         className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/14"
                         onClick={() => {
-                          removeMembersFromGroup(active.id, groupRemoveInput.split(","));
+                          removeMembersFromGroupFlow(active.id, groupRemoveInput.split(","));
                           setGroupRemoveInput("");
                         }}
                       >
